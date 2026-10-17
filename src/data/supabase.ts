@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Movimiento, NuevoMovimiento, Patrimonio } from '../domain/tipos'
-import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
+import type { Movimiento } from '../domain/tipos'
+import type { AlmacenBoveda } from './boveda'
+import type { Sobre } from './cifrado'
+import { PATRIMONIO_VACIO } from './repositorio'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const clave = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -25,59 +27,47 @@ function aMovimiento(f: FilaMovimiento): Movimiento {
   return { id: f.id, tipo: 'gasto', nombre: f.nombre, importe, categoria: f.categoria as never, fecha: f.fecha! }
 }
 
-function aFila(m: NuevoMovimiento) {
+/**
+ * La fila de `bovedas` solo contiene el sobre cifrado. Las tablas `movimientos` y `patrimonio`
+ * son de la versión sin cifrar y solo se leen para migrar sus datos a la bóveda.
+ */
+export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBoveda {
   return {
-    tipo: m.tipo,
-    nombre: m.nombre,
-    importe: m.importe,
-    categoria: m.tipo === 'ingreso' ? null : m.categoria,
-    fecha: m.tipo === 'gasto' ? m.fecha : null,
-  }
-}
-
-export function repositorioSupabase(db: SupabaseClient, userId: string): Repositorio {
-  return {
-    async listarMovimientos() {
-      const { data, error } = await db.from('movimientos').select('id,tipo,nombre,importe,categoria,fecha').order('created_at')
+    async leer() {
+      const { data, error } = await db.from('bovedas').select('version,sal,iteraciones,iv,cifrado').maybeSingle()
       if (error) throw error
-      return (data as FilaMovimiento[]).map(aMovimiento)
+      return data as Sobre | null
     },
-    async crearMovimiento(m) {
-      const { data, error } = await db.from('movimientos').insert(aFila(m)).select().single()
-      if (error) throw error
-      return aMovimiento(data as FilaMovimiento)
-    },
-    async actualizarMovimiento(m) {
-      const { error } = await db.from('movimientos').update(aFila(m)).eq('id', m.id)
+    async escribir(sobre) {
+      const { error } = await db.from('bovedas').upsert({ user_id: userId, ...sobre, updated_at: new Date().toISOString() })
       if (error) throw error
     },
-    async borrarMovimiento(id) {
-      const { error } = await db.from('movimientos').delete().eq('id', id)
-      if (error) throw error
-    },
-    async leerPatrimonio() {
-      const { data, error } = await db
-        .from('patrimonio')
-        .select('fondo_emergencia,total_invertido,updated_at')
-        .maybeSingle()
-      if (error) throw error
-      if (!data) return PATRIMONIO_VACIO
+    async leerSinCifrar() {
+      const [movs, pat] = await Promise.all([
+        db.from('movimientos').select('id,tipo,nombre,importe,categoria,fecha').order('created_at'),
+        db.from('patrimonio').select('fondo_emergencia,total_invertido,updated_at').maybeSingle(),
+      ])
+      if (movs.error) throw movs.error
+      if (pat.error) throw pat.error
+      if (!movs.data.length && !pat.data) return null
       return {
-        fondoEmergencia: Number(data.fondo_emergencia),
-        totalInvertido: Number(data.total_invertido),
-        actualizado: data.updated_at,
+        movimientos: (movs.data as FilaMovimiento[]).map(aMovimiento),
+        patrimonio: pat.data
+          ? {
+              fondoEmergencia: Number(pat.data.fondo_emergencia),
+              totalInvertido: Number(pat.data.total_invertido),
+              actualizado: pat.data.updated_at,
+            }
+          : PATRIMONIO_VACIO,
       }
     },
-    async guardarPatrimonio(p): Promise<Patrimonio> {
-      const actualizado = new Date().toISOString()
-      const { error } = await db.from('patrimonio').upsert({
-        user_id: userId,
-        fondo_emergencia: p.fondoEmergencia,
-        total_invertido: p.totalInvertido,
-        updated_at: actualizado,
-      })
-      if (error) throw error
-      return { ...p, actualizado }
+    async borrarSinCifrar() {
+      const [movs, pat] = await Promise.all([
+        db.from('movimientos').delete().eq('user_id', userId),
+        db.from('patrimonio').delete().eq('user_id', userId),
+      ])
+      if (movs.error) throw movs.error
+      if (pat.error) throw pat.error
     },
   }
 }
