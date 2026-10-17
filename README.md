@@ -2,7 +2,7 @@
 
 Aplicación web para llevar tus finanzas personales y ver, cada mes, cómo vas frente a **6 reglas de dinero**: gastos esenciales, ocio, alquiler, inversión, fondo de emergencia y objetivo de independencia financiera.
 
-Cada persona entra con su correo y solo ve sus propios datos.
+Cada persona entra con su correo y sus datos se **cifran en su navegador** con una contraseña que solo ella conoce: el servidor guarda un bloque cifrado que nadie más puede leer.
 
 ![Captura del gestor de finanzas](docs/captura.png)
 
@@ -28,6 +28,7 @@ Las reglas son una referencia, no un objetivo que haya que cumplir entero: sirve
 
 - **React 19 + TypeScript** con **Vite**
 - **Supabase**: autenticación sin contraseña (enlace mágico) y base de datos Postgres
+- **Cifrado de extremo a extremo** con Web Crypto: clave derivada de la contraseña con PBKDF2 (SHA-256, 600 000 iteraciones) y datos cifrados con AES-GCM de 256 bits
 - **Row Level Security** en Postgres: cada fila pertenece a un usuario y la propia base de datos impide leer o escribir datos ajenos
 - **Vitest** para la lógica de negocio
 - **GitHub Actions**: lint, tests y build en cada push
@@ -37,7 +38,7 @@ Las reglas son una referencia, no un objetivo que haya que cumplir entero: sirve
 ```
 src/
 ├── domain/        Lógica pura, sin React ni red: tipos, cálculo de las reglas y formato
-├── data/          Repositorio con dos implementaciones: Supabase y modo demo (localStorage)
+├── data/          Repositorio en memoria que se guarda cifrado en Supabase o en localStorage (demo)
 ├── hooks/         useFinanzas: carga los datos y expone las operaciones
 └── components/    Pantallas y formularios
 supabase/
@@ -49,6 +50,7 @@ Algunas decisiones:
 - **Las reglas viven en `src/domain/reglas.ts` como funciones puras.** Así se testean sin navegador ni base de datos, y los porcentajes están en un único sitio.
 - **Patrón repositorio.** La interfaz no sabe dónde se guardan los datos. Sin variables de entorno la app arranca en **modo demo** con datos de ejemplo en el navegador, lo que permite probarla sin crear cuenta.
 - **La seguridad está en la base de datos, no en el cliente.** Las políticas RLS comprueban `auth.uid() = user_id`, y las restricciones `check` validan importes, categorías y que cada tipo de movimiento tenga los campos que le corresponden.
+- **Cifrado en el cliente.** Al entrar por primera vez la persona elige una contraseña; de ella se deriva una clave AES-GCM que nunca sale del navegador (ni siquiera es exportable). Todos sus datos se cifran juntos y se guardan como una sola fila en `bovedas`, con un IV nuevo en cada guardado. Quien administra Supabase solo ve texto cifrado, y si la persona borra los datos del navegador los recupera entrando con su correo y su contraseña. Si la olvida, no hay recuperación posible: es el precio de que nadie más pueda leerlos. El código está en `src/data/cifrado.ts` y `src/data/boveda.ts`.
 - **Importes en formato español.** `parsearImporte` entiende `1.250`, `12,50` y `1.250,75 €`, y todo se redondea a céntimos para evitar errores de coma flotante.
 
 ## Ponerlo en marcha
@@ -65,7 +67,7 @@ Sin más configuración arranca en modo demo.
 ### Con Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En el editor SQL, ejecuta `supabase/migrations/20261017000000_inicial.sql`.
+2. En el editor SQL, ejecuta en orden los ficheros de `supabase/migrations/`.
 3. En **Authentication → URL Configuration**, añade la URL de tu app (por ejemplo `http://localhost:5173`) a las URLs de redirección.
 4. Copia `.env.example` a `.env.local` y rellena la URL y la clave `anon` del proyecto (Project Settings → API).
 5. `npm run dev` y entra con tu correo.

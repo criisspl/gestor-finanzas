@@ -1,13 +1,8 @@
-import type { Movimiento, Patrimonio } from '../domain/tipos'
 import { hoy } from '../domain/formato'
-import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
+import type { Repositorio } from './repositorio'
+import { repositorioEnMemoria, type Estado } from './memoria'
 
 const CLAVE = 'gestor-finanzas:demo'
-
-interface Estado {
-  movimientos: Movimiento[]
-  patrimonio: Patrimonio
-}
 
 /** Datos de ejemplo para que la demo no arranque vacía. */
 function ejemplo(): Estado {
@@ -46,35 +41,7 @@ function escribir(e: Estado) {
 
 /** Guarda los datos en el navegador. Se usa cuando no hay Supabase configurado. */
 export function repositorioDemo(): Repositorio {
-  let estado = leer()
-  const guardar = (e: Estado) => {
-    estado = e
-    escribir(e)
-  }
-  return {
-    async listarMovimientos() {
-      return estado.movimientos
-    },
-    async crearMovimiento(m) {
-      const nuevo = { ...m, id: crypto.randomUUID() } as Movimiento
-      guardar({ ...estado, movimientos: [...estado.movimientos, nuevo] })
-      return nuevo
-    },
-    async actualizarMovimiento(m) {
-      guardar({ ...estado, movimientos: estado.movimientos.map((x) => (x.id === m.id ? m : x)) })
-    },
-    async borrarMovimiento(id) {
-      guardar({ ...estado, movimientos: estado.movimientos.filter((x) => x.id !== id) })
-    },
-    async leerPatrimonio() {
-      return estado.patrimonio ?? PATRIMONIO_VACIO
-    },
-    async guardarPatrimonio(p) {
-      const patrimonio = { ...p, actualizado: hoy() }
-      guardar({ ...estado, patrimonio })
-      return patrimonio
-    },
-  }
+  return repositorioEnMemoria(leer(), async (e) => escribir(e))
 }
 
 export function reiniciarDemo() {
