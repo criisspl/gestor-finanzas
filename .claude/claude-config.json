@@ -1,0 +1,17 @@
+{
+  "version": "1.0.1",
+  "paquetes": [
+    "react",
+    "supabase",
+    "typescript",
+    "vite",
+    "vitest"
+  ],
+  "ficheros": {
+    ".claude/skills/react/SKILL.md": "088de4d78faf3ecd505a3df870b72b896a547db30b82faf62a90ff0d32e53624",
+    ".claude/skills/supabase/SKILL.md": "6e2323a6c15dbff484c214fb10fa5174e7d2875b22a89bd49b2df37a8a17f2ee",
+    ".claude/skills/typescript/SKILL.md": "a5515e604e2ec00b02722d48187e4a075f335947bfdc4df9f5585be2e649ca6b",
+    ".claude/skills/vite/SKILL.md": "67305b9712855d3ea15d22431c888ef884546ee40b53357f30e3c1908095083a",
+    ".claude/skills/vitest/SKILL.md": "bf72cc2ec0d482b09485f411e44c940cd7752c01380a0cfe823e09c0144d51d3"
+  }
+}
