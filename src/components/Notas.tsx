@@ -78,7 +78,7 @@ function FormularioNota({ inicial, onGuardar, onCancelar, onBorrar }: {
           <button className="btn primario" type="submit">Guardar</button>
           <button className="btn suave" type="button" onClick={onCancelar}>Cancelar</button>
         </div>
-        {onBorrar && <BotonBorrar className="btn peligro" onBorrar={onBorrar} />}
+        {onBorrar && <BotonBorrar className="btn peligro" nombre={inicial?.titulo ?? 'la nota'} onBorrar={onBorrar} />}
       </div>
     </form>
   )

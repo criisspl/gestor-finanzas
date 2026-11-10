@@ -40,7 +40,7 @@ export function GastosDelMes({ gastos, partidas, cuentas, mes, onBorrar }: Props
                 </div>
                 <div className="derecha">
                   <Importe valor={g.importe} />
-                  <BotonBorrar onBorrar={() => onBorrar(g)} />
+                  <BotonBorrar nombre={g.nombre || NOMBRE_CORTO[g.categoria]} onBorrar={() => onBorrar(g)} />
                 </div>
               </li>
             ))}

@@ -112,7 +112,7 @@ export function Formulario({ tipo, inicial, onGuardar, onCancelar, onBorrar }: {
           <button className="btn primario" type="submit">Guardar</button>
           {onCancelar && <button className="btn suave" type="button" onClick={onCancelar}>Cancelar</button>}
         </div>
-        {onBorrar && <BotonBorrar className="btn peligro" onBorrar={onBorrar} />}
+        {onBorrar && <BotonBorrar className="btn peligro" nombre={inicial?.nombre} onBorrar={onBorrar} />}
       </div>
     </form>
   )
