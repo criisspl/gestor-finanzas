@@ -1,4 +1,5 @@
-import type { Movimiento, Nota, Partida, Patrimonio, Recibos } from '../domain/tipos'
+import { AJUSTES_POR_DEFECTO, DATOS_MES_VACIO, type Ajustes, type Meses, type Movimiento, type Nota, type Partida, type Patrimonio, type Recibos } from '../domain/tipos.ts'
+import { ajustarSaldo as ajustarSaldoPuro, copiarPartidas } from '../domain/cierre.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
 import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
 
@@ -9,11 +10,15 @@ export interface Estado {
   patrimonio: Patrimonio
   partidas: Partida[]
   recibos: Recibos
+  ajustes: Ajustes
+  meses: Meses
 }
 
-export const ESTADO_VACIO: Estado = { movimientos: [], notas: [], patrimonio: PATRIMONIO_VACIO, partidas: [], recibos: {} }
+export const ESTADO_VACIO: Estado = {
+  movimientos: [], notas: [], patrimonio: PATRIMONIO_VACIO, partidas: [], recibos: {}, ajustes: AJUSTES_POR_DEFECTO, meses: {},
+}
 
-/** Completa lo que falte en datos guardados por versiones anteriores (sin notas, partidas o recibos, por ejemplo). */
+/** Completa lo que falte en datos guardados por versiones anteriores (sin notas, partidas, recibos o ajustes, por ejemplo). */
 export function normalizarEstado(e: Partial<Estado>): Estado {
   return {
     movimientos: e.movimientos ?? [],
@@ -21,6 +26,8 @@ export function normalizarEstado(e: Partial<Estado>): Estado {
     patrimonio: e.patrimonio ?? PATRIMONIO_VACIO,
     partidas: e.partidas ?? [],
     recibos: e.recibos ?? {},
+    ajustes: e.ajustes ?? AJUSTES_POR_DEFECTO,
+    meses: e.meses ?? {},
   }
 }
 
@@ -97,6 +104,27 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
     },
     marcarRecibo(mes, id, llegado) {
       return cambiar((e) => [{ ...e, recibos: marcarReciboPuro(e.recibos, mes, id, llegado) }, undefined])
+    },
+    async leerAjustes() {
+      return estado.ajustes
+    },
+    guardarAjustes(a) {
+      return cambiar((e) => [{ ...e, ajustes: a }, undefined])
+    },
+    async listarMeses() {
+      return estado.meses
+    },
+    guardarMes(mes, datos) {
+      return cambiar((e) => [{ ...e, meses: { ...e.meses, [mes]: datos } }, undefined])
+    },
+    ajustarSaldo(mes, cuenta, delta) {
+      return cambiar((e) => [{ ...e, meses: ajustarSaldoPuro(e.meses, mes, cuenta, delta) }, undefined])
+    },
+    crearMes(mes, copiarDe) {
+      return cambiar((e) => {
+        const copiadas = copiarDe ? copiarPartidas(e.partidas, copiarDe, mes, () => crypto.randomUUID()) : []
+        return [{ ...e, partidas: [...e.partidas, ...copiadas], meses: { ...e.meses, [mes]: e.meses[mes] ?? DATOS_MES_VACIO } }, undefined]
+      })
     },
     async leerPatrimonio() {
       return estado.patrimonio ?? PATRIMONIO_VACIO

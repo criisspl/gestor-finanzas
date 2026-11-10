@@ -8,7 +8,7 @@ interface Props {
   fijos: GastoFijo[]
   recibos: Recibos
   mes: string
-  onMarcar: (mes: string, id: string, llegado: boolean) => Promise<unknown>
+  onMarcar: (mes: string, id: string, llegado: boolean, importe: number) => Promise<unknown>
 }
 
 /** Casilla «ha llegado» de cada gasto fijo del mes y lo que falta por pagar. */
@@ -25,7 +25,7 @@ export function RecibosDelMes({ fijos, recibos, mes, onMarcar }: Props) {
           const llegado = reciboLlegado(recibos, mes, f.id)
           return (
             <li key={f.id} className={llegado ? 'hecho' : ''}>
-              <input id={`recibo-${f.id}`} type="checkbox" checked={llegado} onChange={(e) => onMarcar(mes, f.id, e.target.checked)} />
+              <input id={`recibo-${f.id}`} type="checkbox" checked={llegado} onChange={(e) => onMarcar(mes, f.id, e.target.checked, f.importe)} />
               <label htmlFor={`recibo-${f.id}`}>
                 <span className="nombre">{f.nombre}</span>
                 <span className="donde">{NOMBRE_CORTO[f.categoria]} · {llegado ? 'ha llegado' : 'pendiente'}</span>

@@ -1,6 +1,7 @@
 import type { Categoria, Movimiento, Patrimonio } from './tipos'
 import { CATEGORIAS } from './tipos'
 import { euros as fmt } from './formato'
+import { fechaEnMes } from './ciclo.ts'
 
 /** Porcentajes de las 6 reglas de dinero, sobre el ingreso mensual. */
 export const PORCENTAJES = {
@@ -47,12 +48,17 @@ export const redondear = (n: number) => Math.round(n * 100) / 100
 const suma = (importes: number[]) => redondear(importes.reduce((a, b) => a + b, 0))
 const ratio = (actual: number, objetivo: number) => (objetivo > 0 ? actual / objetivo : 0)
 
-/** `mes` en formato YYYY-MM. Los fijos cuentan todos los meses; los variables solo el suyo. */
-export function resumirMes(movimientos: Movimiento[], mes: string): ResumenMes {
-  const ingreso = suma(movimientos.filter((m) => m.tipo === 'ingreso').map((m) => m.importe))
+/**
+ * `mes` en formato YYYY-MM. Los fijos cuentan todos los meses; los variables solo el suyo.
+ * `diaInicio` es el día en que empieza el mes de nómina (1 = mes natural). `ingreso` sustituye
+ * a la suma de los ingresos mensuales, por ejemplo con la nómina realmente recibida.
+ */
+export function resumirMes(movimientos: Movimiento[], mes: string, opciones: { diaInicio?: number; ingreso?: number } = {}): ResumenMes {
+  const { diaInicio = 1 } = opciones
+  const ingreso = opciones.ingreso ?? suma(movimientos.filter((m) => m.tipo === 'ingreso').map((m) => m.importe))
   const porCategoria = Object.fromEntries(CATEGORIAS.map((c) => [c, 0])) as Record<Categoria, number>
   for (const m of movimientos) {
-    if (m.tipo === 'fijo' || (m.tipo === 'gasto' && m.fecha.startsWith(mes))) {
+    if (m.tipo === 'fijo' || (m.tipo === 'gasto' && fechaEnMes(m.fecha, mes, diaInicio))) {
       porCategoria[m.categoria] = redondear(porCategoria[m.categoria] + m.importe)
     }
   }

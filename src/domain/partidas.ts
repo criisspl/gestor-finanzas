@@ -1,10 +1,11 @@
+import { fechaEnMes } from './ciclo.ts'
 import { redondear } from './reglas.ts'
 import type { GastoFijo, GastoVariable, Partida, Recibos } from './tipos.ts'
 
-/** Lo apuntado en una partida: gastos de su mes que llevan su id. */
-export function gastadoEn(partida: Partida, gastos: GastoVariable[]): number {
+/** Lo apuntado en una partida: gastos de su mes de nómina que llevan su id. Con `diaInicio` 1, meses naturales. */
+export function gastadoEn(partida: Partida, gastos: GastoVariable[], diaInicio = 1): number {
   return redondear(
-    gastos.filter((g) => g.partida === partida.id && g.fecha.startsWith(partida.mes)).reduce((a, g) => a + g.importe, 0),
+    gastos.filter((g) => g.partida === partida.id && fechaEnMes(g.fecha, partida.mes, diaInicio)).reduce((a, g) => a + g.importe, 0),
   )
 }
 
@@ -32,9 +33,9 @@ export interface RepartoMes {
   previsto: number
 }
 
-export function repartoMes(partidas: Partida[], gastos: GastoVariable[], ingreso: number): RepartoMes {
+export function repartoMes(partidas: Partida[], gastos: GastoVariable[], ingreso: number, diaInicio = 1): RepartoMes {
   const asignado = redondear(partidas.reduce((a, p) => a + p.importe, 0))
-  const gastadoTotal = redondear(partidas.reduce((a, p) => a + consumo(p, gastadoEn(p, gastos)), 0))
+  const gastadoTotal = redondear(partidas.reduce((a, p) => a + consumo(p, gastadoEn(p, gastos, diaInicio)), 0))
   return { asignado, sinAsignar: redondear(ingreso - asignado), consumo: gastadoTotal, previsto: redondear(ingreso - gastadoTotal) }
 }
 

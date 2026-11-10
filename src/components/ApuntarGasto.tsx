@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { CATEGORIAS, NOMBRE_CATEGORIA, type Categoria, type NuevoMovimiento, type Partida } from '../domain/tipos'
+import { CATEGORIAS, NOMBRE_CATEGORIA, type Categoria, type Cuenta, type NuevoMovimiento, type Partida } from '../domain/tipos'
 import { ordenarPartidas } from '../domain/partidas.ts'
+import { mesDeFecha } from '../domain/ciclo.ts'
 import { hoy, parsearImporte } from '../domain/formato'
 
 // El alquiler es un gasto fijo: no se ofrece como gasto variable
@@ -9,19 +10,24 @@ const OPCIONES = CATEGORIAS.filter((c) => c !== 'alquiler')
 interface Props {
   /** Todas las partidas: se ofrecen las del mes de la fecha elegida. */
   partidas: Partida[]
+  diaInicio: number
+  cuentas: Cuenta[]
   onApuntar: (m: NuevoMovimiento) => Promise<unknown>
 }
 
-export function ApuntarGasto({ partidas, onApuntar }: Props) {
+export function ApuntarGasto({ partidas, diaInicio, cuentas, onApuntar }: Props) {
   const [importe, setImporte] = useState('')
   const [fecha, setFecha] = useState(hoy())
   const [categoria, setCategoria] = useState<Categoria>('esencial')
   const [partida, setPartida] = useState('')
+  // null = la que lleva la partida elegida
+  const [cuenta, setCuenta] = useState<string | null>(null)
   const [concepto, setConcepto] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
-  const delMes = ordenarPartidas(partidas.filter((x) => x.mes === fecha.slice(0, 7)))
+  const delMes = ordenarPartidas(partidas.filter((x) => x.mes === mesDeFecha(fecha, diaInicio)))
   // Si al cambiar la fecha la partida elegida es de otro mes, se queda sin partida
   const partidaValida = delMes.some((x) => x.id === partida) ? partida : ''
+  const cuentaElegida = cuenta ?? delMes.find((x) => x.id === partidaValida)?.cuenta ?? ''
   const refImporte = useRef<HTMLInputElement>(null)
 
   async function enviar(e: FormEvent) {
@@ -32,7 +38,7 @@ export function ApuntarGasto({ partidas, onApuntar }: Props) {
       return
     }
     setAviso(null)
-    const ok = await onApuntar({ tipo: 'gasto', categoria, importe: n, nombre: concepto.trim() || null, fecha, partida: partidaValida || null })
+    const ok = await onApuntar({ tipo: 'gasto', categoria, importe: n, nombre: concepto.trim() || null, fecha, partida: partidaValida || null, cuenta: cuentaElegida || null })
     if (ok) {
       setImporte('')
       setConcepto('')
@@ -58,6 +64,14 @@ export function ApuntarGasto({ partidas, onApuntar }: Props) {
             {delMes.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
           </select>
         </label>
+        {!!cuentas.length && (
+          <label>Cuenta de la que sale
+            <select id="g-cuenta" value={cuentaElegida} onChange={(e) => setCuenta(e.target.value)}>
+              <option value="">Ninguna (no ajusta saldos)</option>
+              {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </label>
+        )}
         <div className="fila2">
           <label>Tipo
             <select id="g-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value as Categoria)}>

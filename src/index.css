@@ -124,3 +124,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .bienvenida .form { padding: 0; border: 0; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Pestañas de mes de nómina: la fila se desplaza por dentro, la página no */
+.pestanas-caja { display: grid; gap: 8px; min-width: 0; }
+.pestanas { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.pestanas button { flex: none; border: 0; border-radius: 99px; padding: 6px 14px; background: var(--line); color: var(--fg); font: 600 .85rem var(--body); cursor: pointer; }
+.pestanas button[aria-selected="true"] { background: var(--accent); color: var(--surface); }
+.pestanas-caja .anadir { justify-self: start; margin-top: 0; }
+.mes-nombre { font-weight: 600; }
+.resumen-nota { margin: 10px 0 0; }
