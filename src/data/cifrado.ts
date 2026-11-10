@@ -6,8 +6,8 @@
 
 /** Lo que se guarda en el servidor. Sin la contraseña no se puede leer. */
 export interface Sobre {
-  /** 1: movimientos y patrimonio. 2: añade notas. 3: añade partidas y recibos. 4: añade ajustes (cuentas, ciclo) y datos de cada mes. Se sabe abrir todas. */
-  version: 1 | 2 | 3 | 4
+  /** 1: movimientos y patrimonio. 2: añade notas. 3: añade partidas y recibos. 4: añade ajustes (cuentas, ciclo) y datos de cada mes. 5: añade deudas, pagos y cobros pendientes. Se sabe abrir todas. */
+  version: 1 | 2 | 3 | 4 | 5
   /** Sal de PBKDF2 en base64. Es única por persona y no es secreta. */
   sal: string
   iteraciones: number
@@ -25,7 +25,7 @@ export interface Llave {
 }
 
 /** Versión con la que se escriben los sobres nuevos. */
-export const VERSION_SOBRE = 4
+export const VERSION_SOBRE = 5
 
 /** Recomendación de OWASP para PBKDF2-HMAC-SHA256. */
 export const ITERACIONES = 600_000
@@ -78,7 +78,7 @@ export async function cifrar(llave: Llave, valor: unknown): Promise<Sobre> {
 
 /** Lanza ContrasenaIncorrecta si la llave no es la del sobre (o si alguien lo ha manipulado). */
 export async function descifrar<T>(llave: Llave, sobre: Sobre): Promise<T> {
-  if (sobre.version !== 1 && sobre.version !== 2 && sobre.version !== 3 && sobre.version !== 4) throw new Error(`Versión de sobre no soportada: ${String(sobre.version)}`)
+  if (sobre.version !== 1 && sobre.version !== 2 && sobre.version !== 3 && sobre.version !== 4 && sobre.version !== 5) throw new Error(`Versión de sobre no soportada: ${String(sobre.version)}`)
   let datos: ArrayBuffer
   try {
     datos = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deBase64(sobre.iv) }, llave.clave, deBase64(sobre.cifrado))

@@ -5,6 +5,7 @@ import { calcularReglas, resumirMes } from '../domain/reglas'
 import { arrastre, datosMes, ingresoDe, listaMeses, planTraspasos, type DatosCiclo } from '../domain/cierre.ts'
 import { diasDesdeInicio, fechaEnMes, mesDeFecha } from '../domain/ciclo.ts'
 import { hoy, moverMes, nombreMes } from '../domain/formato.ts'
+import { cobrosPendientes, totalCobros } from '../domain/deudas.ts'
 import { pendientesPago } from '../domain/partidas.ts'
 import type { GastoFijo, GastoVariable, Ingreso } from '../domain/tipos'
 import { Resumen } from './Resumen'
@@ -21,6 +22,8 @@ import { CierreMes } from './CierreMes'
 import { Traspasos } from './Traspasos'
 import { ResumenCuentas } from './ResumenCuentas'
 import { Ajustes } from './Ajustes'
+import { Cobros } from './Cobros'
+import { Deudas } from './Deudas'
 
 /** Días desde el inicio del mes en los que se ofrece «Ha llegado la nómina» sin tener que pedirlo. */
 const DIAS_CIERRE = 5
@@ -99,7 +102,8 @@ export function Panel({ repo }: { repo: Repositorio }) {
   const plan = datos.nominaRecibida ? planTraspasos(cuentas, partidasMes, ingresoMes, arrastreMes) : null
   const traspasos = plan && <Traspasos plan={plan} nomina={ingresoMes} arrastre={arrastreMes} />
   const cuentasResumen = cuentas[0] && (
-    <ResumenCuentas cuentaNomina={cuentas[0].nombre} saldo={datos.saldos[cuentas[0].id] ?? null} falta={pendientesPago(fijos, f.recibos, mes).total} />
+    <ResumenCuentas cuentaNomina={cuentas[0].nombre} saldo={datos.saldos[cuentas[0].id] ?? null} falta={pendientesPago(fijos, f.recibos, mes).total}
+      porCobrar={totalCobros(cobrosPendientes(f.cobros, mes))} />
   )
 
   return (
@@ -110,11 +114,14 @@ export function Panel({ repo }: { repo: Repositorio }) {
       {cierre}
       {traspasos}
       {cuentasResumen}
+      <Cobros mes={mes} cobros={f.cobros} onCrear={f.crearCobro} onActualizar={f.actualizarCobro} onBorrar={f.borrarCobro} onCobrar={f.cobrar} />
       <Resumen resumen={resumen} mes={mes} />
       <Reglas reglas={reglas} />
       <Reparto mes={mes} partidas={partidasMes} gastos={todosGastos} ingreso={resumen.ingreso} diaInicio={dia} cuentas={f.ajustes.cuentas}
         onCrear={f.crearPartida} onActualizar={f.actualizarPartida} onBorrar={f.borrarPartida} />
       <RecibosDelMes fijos={fijos} recibos={f.recibos} mes={mes} onMarcar={f.marcarRecibo} />
+      <Deudas deudas={f.deudas} pagos={f.pagos} partidas={f.partidas} diaInicio={dia} onCrear={f.crearDeuda} onActualizar={f.actualizarDeuda}
+        onBorrar={f.borrarDeuda} onPagar={f.pagarDeuda} onBorrarPago={f.borrarPago} />
       <Notas notas={f.notas} onCrear={f.crearNota} onActualizar={f.actualizarNota} onBorrar={f.borrarNota} />
       <ApuntarGasto partidas={f.partidas} diaInicio={dia} cuentas={f.ajustes.cuentas} onApuntar={async (m) => {
         const nuevo = await f.apuntarGasto(m)

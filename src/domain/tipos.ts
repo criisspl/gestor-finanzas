@@ -131,3 +131,40 @@ export interface Patrimonio {
   totalInvertido: number
   actualizado: string | null
 }
+
+/** Algo que la persona debe y va devolviendo con pagos parciales. El estado (verde, ámbar, rojo) es opcional. */
+export interface Deuda {
+  id: string
+  nombre: string
+  detalle: string | null
+  /** Importe total a devolver. */
+  importe: number
+  estado: TipoNota | null
+  estadoTexto: string | null
+}
+export type NuevaDeuda = Omit<Deuda, 'id'>
+
+/** Un pago parcial de una deuda. Si salió de una partida, `gasto` es el id del gasto que se creó con él. */
+export interface PagoDeuda {
+  id: string
+  deuda: string
+  importe: number
+  /** Fecha en formato YYYY-MM-DD */
+  fecha: string
+  gasto: string | null
+}
+export type NuevoPagoDeuda = Omit<PagoDeuda, 'id' | 'gasto'>
+
+/** Dinero que te deben y que llegará: se asigna a un mes de nómina y se marca al cobrarlo. */
+export interface Cobro {
+  id: string
+  /** Mes de nómina en formato YYYY-MM */
+  mes: string
+  nombre: string
+  detalle: string | null
+  importe: number
+  cobrado: boolean
+  /** Fecha en la que se marcó como cobrado (YYYY-MM-DD). */
+  fechaCobro: string | null
+}
+export type NuevoCobro = Omit<Cobro, 'id' | 'cobrado' | 'fechaCobro'>

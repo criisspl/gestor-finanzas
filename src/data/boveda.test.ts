@@ -36,6 +36,9 @@ const antiguo: Estado = {
   recibos: {},
   ajustes: AJUSTES_POR_DEFECTO,
   meses: {},
+  deudas: [],
+  pagos: [],
+  cobros: [],
 }
 
 describe('bóveda', () => {
@@ -83,7 +86,7 @@ describe('bóveda', () => {
     const partida = await repo.crearPartida({ mes: '2026-11', nombre: 'Comida secreta', detalle: null, importe: 250, variable: true, orden: 1 })
     const gasto = await repo.crearMovimiento({ tipo: 'gasto', nombre: 'Súper', importe: 40, categoria: 'esencial', fecha: '2026-11-02', partida: partida.id })
     await repo.marcarRecibo('2026-11', 'f1', true)
-    expect(almacen.sobre?.version).toBe(4)
+    expect(almacen.sobre?.version).toBe(5)
     expect(almacen.sobre?.cifrado).not.toContain('secreta')
 
     const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
@@ -97,7 +100,7 @@ describe('bóveda', () => {
     expect(await otra.listarMovimientos()).toEqual([{ ...gasto, partida: null }])
   })
 
-  it('abre un sobre de la versión 2 (sin partidas ni recibos) y lo guarda ya como versión 4', async () => {
+  it('abre un sobre de la versión 2 (sin partidas ni recibos) y lo guarda ya como versión 5', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
     const nota = { id: 'n1', tipo: 'ok', titulo: null, texto: 'x' }
@@ -107,10 +110,10 @@ describe('bóveda', () => {
     expect(await repo.listarPartidas()).toEqual([])
     expect(await repo.listarRecibos()).toEqual({})
     await repo.marcarRecibo('2026-11', 'f1', true)
-    expect(almacen.sobre?.version).toBe(4)
+    expect(almacen.sobre?.version).toBe(5)
   })
 
-  it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 4', async () => {
+  it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 5', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
     const estadoV1 = { movimientos: antiguo.movimientos, patrimonio: antiguo.patrimonio }
@@ -120,7 +123,7 @@ describe('bóveda', () => {
     expect(await repo.listarNotas()).toEqual([])
     expect(await repo.listarPartidas()).toEqual([])
     await repo.crearNota({ tipo: 'ok', titulo: 'Hola', texto: 'x' })
-    expect(almacen.sobre?.version).toBe(4)
+    expect(almacen.sobre?.version).toBe(5)
     expect((await abrirLlave('contraseña', almacen.sobre!)).sal).toBe(v1.sal)
   })
 
@@ -144,6 +147,61 @@ describe('bóveda', () => {
     const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
     expect((await otra.leerAjustes()).diaInicio).toBe(25)
     expect((await otra.listarMeses())['2026-11']).toEqual({ nomina: 1500, nominaRecibida: true, arrastreReal: null, saldos: { c1: 70 } })
+  })
+
+  it('abre un sobre de la versión 4 (sin deudas ni cobros) y los completa vacíos', async () => {
+    const almacen = almacenFalso()
+    const llave = await crearLlave('contraseña', IT)
+    const v4: Sobre = { ...(await cifrar(llave, { movimientos: antiguo.movimientos, partidas: [], recibos: {}, meses: {} })), version: 4 }
+    const repo = await abrirBoveda(almacen, v4, 'contraseña')
+    expect(await repo.listarDeudas()).toEqual([])
+    expect(await repo.listarPagos()).toEqual([])
+    expect(await repo.listarCobros()).toEqual([])
+    await repo.crearCobro({ mes: '2026-11', nombre: 'x', detalle: null, importe: 5 })
+    expect(almacen.sobre?.version).toBe(5)
+  })
+
+  it('deudas, pagos y cobros se guardan cifrados y se recuperan', async () => {
+    const almacen = almacenFalso()
+    const repo = await crearBoveda(almacen, 'contraseña', IT)
+    const deuda = await repo.crearDeuda({ nombre: 'Préstamo reservado', detalle: null, importe: 300, estado: 'mal', estadoTexto: 'Vencida' })
+    const cobro = await repo.crearCobro({ mes: '2026-11', nombre: 'Cobro reservado', detalle: null, importe: 80 })
+    await repo.actualizarCobro({ ...cobro, cobrado: true, fechaCobro: '2026-11-10' })
+    expect(almacen.sobre?.cifrado).not.toContain('reservado')
+
+    const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    expect(await otra.listarDeudas()).toEqual([deuda])
+    expect(await otra.listarCobros()).toEqual([{ ...cobro, cobrado: true, fechaCobro: '2026-11-10' }])
+  })
+
+  it('un pago restado de una partida crea un gasto enlazado que se borra con el pago', async () => {
+    const repo = await crearBoveda(almacenFalso(), 'contraseña', IT)
+    const deuda = await repo.crearDeuda({ nombre: 'D', detalle: null, importe: 100, estado: null, estadoTexto: null })
+    const sin = await repo.registrarPago({ deuda: deuda.id, importe: 10, fecha: '2026-11-05' }, null)
+    expect(sin.gasto).toBeNull()
+    const con = await repo.registrarPago(
+      { deuda: deuda.id, importe: 40, fecha: '2026-11-06' },
+      { tipo: 'gasto', nombre: 'Pago: D', importe: 40, categoria: 'otros', fecha: '2026-11-06', partida: 'p1' },
+    )
+    expect(con.pago.gasto).toBe(con.gasto?.id)
+    expect(await repo.listarMovimientos()).toEqual([con.gasto])
+
+    await repo.borrarPago(con.pago.id)
+    expect(await repo.listarMovimientos()).toEqual([])
+    expect(await repo.listarPagos()).toEqual([sin.pago])
+  })
+
+  it('al borrar una deuda se borran sus pagos y los gastos que crearon', async () => {
+    const repo = await crearBoveda(almacenFalso(), 'contraseña', IT)
+    const deuda = await repo.crearDeuda({ nombre: 'D', detalle: null, importe: 100, estado: null, estadoTexto: null })
+    await repo.registrarPago(
+      { deuda: deuda.id, importe: 40, fecha: '2026-11-06' },
+      { tipo: 'gasto', nombre: 'Pago: D', importe: 40, categoria: 'otros', fecha: '2026-11-06', partida: 'p1' },
+    )
+    await repo.borrarDeuda(deuda.id)
+    expect(await repo.listarDeudas()).toEqual([])
+    expect(await repo.listarPagos()).toEqual([])
+    expect(await repo.listarMovimientos()).toEqual([])
   })
 
   it('si no se puede guardar, el cambio no se aplica', async () => {

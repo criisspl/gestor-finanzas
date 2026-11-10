@@ -36,7 +36,7 @@ export async function crearBoveda(almacen: AlmacenBoveda, contrasena: string, it
 /** Lanza ContrasenaIncorrecta si la contraseña no abre el sobre. */
 export async function abrirBoveda(almacen: AlmacenBoveda, sobre: Sobre, contrasena: string): Promise<Repositorio> {
   const llave = await abrirLlave(contrasena, sobre)
-  // Los sobres anteriores a la versión 4 no tienen notas, partidas, recibos, ajustes ni meses: se completan al abrir
+  // Los sobres anteriores a la versión 5 no tienen notas, partidas, recibos, ajustes, meses, deudas ni cobros: se completan al abrir
   const estado = normalizarEstado(await descifrar<Partial<Estado>>(llave, sobre))
   await limpiarSinCifrar(almacen)
   return repositorioCifrado(almacen, llave, estado)

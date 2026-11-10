@@ -1,4 +1,4 @@
-import { AJUSTES_POR_DEFECTO, DATOS_MES_VACIO, type Ajustes, type Meses, type Movimiento, type Nota, type Partida, type Patrimonio, type Recibos } from '../domain/tipos.ts'
+import { AJUSTES_POR_DEFECTO, DATOS_MES_VACIO, type Ajustes, type Cobro, type Deuda, type GastoVariable, type Meses, type Movimiento, type Nota, type PagoDeuda, type Partida, type Patrimonio, type Recibos } from '../domain/tipos.ts'
 import { ajustarSaldo as ajustarSaldoPuro, copiarPartidas } from '../domain/cierre.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
 import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
@@ -12,10 +12,14 @@ export interface Estado {
   recibos: Recibos
   ajustes: Ajustes
   meses: Meses
+  deudas: Deuda[]
+  pagos: PagoDeuda[]
+  cobros: Cobro[]
 }
 
 export const ESTADO_VACIO: Estado = {
   movimientos: [], notas: [], patrimonio: PATRIMONIO_VACIO, partidas: [], recibos: {}, ajustes: AJUSTES_POR_DEFECTO, meses: {},
+  deudas: [], pagos: [], cobros: [],
 }
 
 /** Completa lo que falte en datos guardados por versiones anteriores (sin notas, partidas, recibos o ajustes, por ejemplo). */
@@ -28,6 +32,9 @@ export function normalizarEstado(e: Partial<Estado>): Estado {
     recibos: e.recibos ?? {},
     ajustes: e.ajustes ?? AJUSTES_POR_DEFECTO,
     meses: e.meses ?? {},
+    deudas: e.deudas ?? [],
+    pagos: e.pagos ?? [],
+    cobros: e.cobros ?? [],
   }
 }
 
@@ -125,6 +132,64 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
         const copiadas = copiarDe ? copiarPartidas(e.partidas, copiarDe, mes, () => crypto.randomUUID()) : []
         return [{ ...e, partidas: [...e.partidas, ...copiadas], meses: { ...e.meses, [mes]: e.meses[mes] ?? DATOS_MES_VACIO } }, undefined]
       })
+    },
+    async listarDeudas() {
+      return estado.deudas
+    },
+    crearDeuda(d) {
+      const nueva: Deuda = { ...d, id: crypto.randomUUID() }
+      return cambiar((e) => [{ ...e, deudas: [...e.deudas, nueva] }, nueva])
+    },
+    actualizarDeuda(d) {
+      return cambiar((e) => [{ ...e, deudas: e.deudas.map((x) => (x.id === d.id ? d : x)) }, undefined])
+    },
+    borrarDeuda(id) {
+      // Sus pagos desaparecen con ella, igual que los gastos que crearon
+      return cambiar((e) => {
+        const gastos = new Set(e.pagos.filter((p) => p.deuda === id).map((p) => p.gasto))
+        return [
+          {
+            ...e,
+            deudas: e.deudas.filter((x) => x.id !== id),
+            pagos: e.pagos.filter((p) => p.deuda !== id),
+            movimientos: e.movimientos.filter((m) => !gastos.has(m.id)),
+          },
+          undefined,
+        ]
+      })
+    },
+    async listarPagos() {
+      return estado.pagos
+    },
+    registrarPago(pago, gasto) {
+      return cambiar((e) => {
+        const nuevoGasto = gasto ? ({ ...gasto, id: crypto.randomUUID() } as GastoVariable) : null
+        const nuevo: PagoDeuda = { ...pago, id: crypto.randomUUID(), gasto: nuevoGasto?.id ?? null }
+        return [
+          { ...e, pagos: [...e.pagos, nuevo], movimientos: nuevoGasto ? [...e.movimientos, nuevoGasto] : e.movimientos },
+          { pago: nuevo, gasto: nuevoGasto },
+        ]
+      })
+    },
+    borrarPago(id) {
+      // Si el pago creó un gasto en una partida, se borra con él
+      return cambiar((e) => {
+        const gasto = e.pagos.find((p) => p.id === id)?.gasto
+        return [{ ...e, pagos: e.pagos.filter((p) => p.id !== id), movimientos: e.movimientos.filter((m) => m.id !== gasto) }, undefined]
+      })
+    },
+    async listarCobros() {
+      return estado.cobros
+    },
+    crearCobro(c) {
+      const nuevo: Cobro = { ...c, id: crypto.randomUUID(), cobrado: false, fechaCobro: null }
+      return cambiar((e) => [{ ...e, cobros: [...e.cobros, nuevo] }, nuevo])
+    },
+    actualizarCobro(c) {
+      return cambiar((e) => [{ ...e, cobros: e.cobros.map((x) => (x.id === c.id ? c : x)) }, undefined])
+    },
+    borrarCobro(id) {
+      return cambiar((e) => [{ ...e, cobros: e.cobros.filter((x) => x.id !== id) }, undefined])
     },
     async leerPatrimonio() {
       return estado.patrimonio ?? PATRIMONIO_VACIO

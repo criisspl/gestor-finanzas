@@ -11,6 +11,11 @@ Cada persona entra con su correo y sus datos se **cifran en su navegador** con u
 - **Ingresos y gastos fijos** que se repiten cada mes (nómina, alquiler, recibos, suscripciones).
 - **Gastos variables y aportaciones a inversión** apuntados día a día, agrupados por mes.
 - **Resumen del mes**: ingresos, gastado, invertido y lo que queda para ahorrar, con una barra de reparto por categoría.
+- **Reparto de la nómina por partidas** con presupuesto, lo gastado en cada una y los recibos fijos marcados mes a mes.
+- **Ciclo de nómina y cuentas**: el mes empieza el día que elijas, el sobrante pasa al siguiente, cada partida va a su cuenta y se apuntan saldos y traspasos.
+- **Notas** de colores (verde, ámbar, rojo) para recordatorios y avisos.
+- **Deudas** con pagos parciales: lo pagado, lo que queda, lo vencido y, si quieres, el pago se resta de una partida.
+- **Pendiente de cobrar**: dinero que te deben por mes; al llegar suma a tu cuenta de nómina y se ve cuánto te sobrará cuando llegue.
 - **Las 6 reglas** calculadas sobre tu ingreso, con lo que deberías gastar, lo que llevas y un estado (bien, al límite, te pasas):
 
 | # | Regla | Cálculo |
