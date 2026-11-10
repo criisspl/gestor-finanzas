@@ -3,15 +3,23 @@ import type {
   PagoDeuda, Partida, Patrimonio, Recibos,
 } from '../domain/tipos'
 
+/** Cambio de saldo de una cuenta en un mes. Se aplica en el mismo guardado que la operación que lo causa. */
+export interface AjusteSaldo {
+  mes: string
+  cuenta: string
+  delta: number
+}
+
 /**
  * Dónde se guardan los datos de la persona que ha iniciado sesión.
  * Hay dos implementaciones: Supabase (real) y localStorage (modo demo).
  */
 export interface Repositorio {
   listarMovimientos(): Promise<Movimiento[]>
-  crearMovimiento(m: NuevoMovimiento): Promise<Movimiento>
+  /** Con `ajuste`, el saldo de la cuenta se actualiza en el mismo guardado (todo o nada). */
+  crearMovimiento(m: NuevoMovimiento, ajuste?: AjusteSaldo | null): Promise<Movimiento>
   actualizarMovimiento(m: Movimiento): Promise<void>
-  borrarMovimiento(id: string): Promise<void>
+  borrarMovimiento(id: string, ajuste?: AjusteSaldo | null): Promise<void>
   listarNotas(): Promise<Nota[]>
   crearNota(n: NuevaNota): Promise<Nota>
   actualizarNota(n: Nota): Promise<void>
@@ -22,7 +30,7 @@ export interface Repositorio {
   /** Los gastos apuntados en esa partida se conservan, sin partida. */
   borrarPartida(id: string): Promise<void>
   listarRecibos(): Promise<Recibos>
-  marcarRecibo(mes: string, id: string, llegado: boolean): Promise<void>
+  marcarRecibo(mes: string, id: string, llegado: boolean, ajuste?: AjusteSaldo | null): Promise<void>
   leerAjustes(): Promise<Ajustes>
   guardarAjustes(a: Ajustes): Promise<void>
   listarMeses(): Promise<Meses>
@@ -43,7 +51,7 @@ export interface Repositorio {
   borrarPago(id: string): Promise<void>
   listarCobros(): Promise<Cobro[]>
   crearCobro(c: NuevoCobro): Promise<Cobro>
-  actualizarCobro(c: Cobro): Promise<void>
+  actualizarCobro(c: Cobro, ajuste?: AjusteSaldo | null): Promise<void>
   borrarCobro(id: string): Promise<void>
   leerPatrimonio(): Promise<Patrimonio>
   guardarPatrimonio(p: Omit<Patrimonio, 'actualizado'>): Promise<Patrimonio>

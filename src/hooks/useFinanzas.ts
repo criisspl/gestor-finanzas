@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Repositorio } from '../data/repositorio'
+import type { AjusteSaldo, Repositorio } from '../data/repositorio'
 import { PATRIMONIO_VACIO } from '../data/repositorio'
 import { ConflictoBoveda } from '../data/boveda.ts'
+import { ajustarSaldo as ajustarSaldoPuro } from '../domain/cierre.ts'
 import { mesDeFecha } from '../domain/ciclo.ts'
 import { hoy } from '../domain/formato.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
@@ -166,52 +167,50 @@ export function useFinanzas(repo: Repositorio) {
     [repo, intentar],
   )
 
-  /** Ajusta el saldo de una cuenta en un mes (si ya se había apuntado) y recarga los meses. */
-  const ajustarSaldo = useCallback(
-    async (mes: string, cuenta: string, delta: number) => {
-      try {
-        await repo.ajustarSaldo(mes, cuenta, delta)
-        setMeses(await repo.listarMeses())
-      } catch {
-        setError('Guardado, pero no se pudo actualizar el saldo de la cuenta.')
-      }
-    },
-    [repo],
-  )
+  /** Refleja en pantalla el mismo ajuste de saldo que el repositorio guardó junto a la operación. */
+  const reflejarSaldo = useCallback((ajuste: AjusteSaldo | null) => {
+    if (ajuste) setMeses((prev) => ajustarSaldoPuro(prev, ajuste.mes, ajuste.cuenta, ajuste.delta))
+  }, [])
 
-  /** Apunta un gasto y, si sale de una cuenta con saldo apuntado, se lo resta. */
+  /** Apunta un gasto y, si sale de una cuenta con saldo apuntado, se lo resta; todo en un solo guardado. */
   const apuntarGasto = useCallback(
-    async (m: NuevoMovimiento) => {
-      const nuevo = await crear(m)
-      if (nuevo?.tipo === 'gasto' && nuevo.cuenta) await ajustarSaldo(mesDeFecha(nuevo.fecha, ajustes.diaInicio), nuevo.cuenta, -nuevo.importe)
-      return nuevo
-    },
-    [crear, ajustarSaldo, ajustes.diaInicio],
+    (m: NuevoMovimiento) =>
+      intentar(async () => {
+        const ajuste =
+          m.tipo === 'gasto' && m.cuenta ? { mes: mesDeFecha(m.fecha, ajustes.diaInicio), cuenta: m.cuenta, delta: -m.importe } : null
+        const nuevo = await repo.crearMovimiento(m, ajuste)
+        setMovimientos((prev) => [...prev, nuevo])
+        reflejarSaldo(ajuste)
+        return nuevo
+      }),
+    [repo, intentar, reflejarSaldo, ajustes.diaInicio],
   )
 
-  /** Borra un gasto y devuelve su importe a la cuenta de la que salió. */
+  /** Borra un gasto y devuelve su importe a la cuenta de la que salió, en un solo guardado. */
   const borrarGasto = useCallback(
-    async (g: GastoVariable) => {
-      const id = await borrar(g.id)
-      if (id && g.cuenta) await ajustarSaldo(mesDeFecha(g.fecha, ajustes.diaInicio), g.cuenta, g.importe)
-      return id
-    },
-    [borrar, ajustarSaldo, ajustes.diaInicio],
+    (g: GastoVariable) =>
+      intentar(async () => {
+        const ajuste = g.cuenta ? { mes: mesDeFecha(g.fecha, ajustes.diaInicio), cuenta: g.cuenta, delta: g.importe } : null
+        await repo.borrarMovimiento(g.id, ajuste)
+        setMovimientos((prev) => prev.filter((x) => x.id !== g.id))
+        reflejarSaldo(ajuste)
+        return g.id
+      }),
+    [repo, intentar, reflejarSaldo, ajustes.diaInicio],
   )
 
-  /** Marca o desmarca un recibo; al marcarlo, su importe sale de la cuenta de nómina (la primera). */
+  /** Marca o desmarca un recibo; al marcarlo, su importe sale de la cuenta de nómina (la primera). Un solo guardado. */
   const marcarRecibo = useCallback(
-    async (mes: string, id: string, llegado: boolean, importe: number) => {
-      const hecho = await intentar(async () => {
-        await repo.marcarRecibo(mes, id, llegado)
+    (mes: string, id: string, llegado: boolean, importe: number) =>
+      intentar(async () => {
+        const nomina = ajustes.cuentas[0]
+        const ajuste = nomina ? { mes, cuenta: nomina.id, delta: llegado ? -importe : importe } : null
+        await repo.marcarRecibo(mes, id, llegado, ajuste)
         setRecibos((prev) => marcarReciboPuro(prev, mes, id, llegado))
+        reflejarSaldo(ajuste)
         return id
-      })
-      const nomina = ajustes.cuentas[0]
-      if (hecho && nomina) await ajustarSaldo(mes, nomina.id, llegado ? -importe : importe)
-      return hecho
-    },
-    [repo, intentar, ajustarSaldo, ajustes.cuentas],
+      }),
+    [repo, intentar, reflejarSaldo, ajustes.cuentas],
   )
 
   const guardarAjustes = useCallback(
@@ -326,18 +325,17 @@ export function useFinanzas(repo: Repositorio) {
 
   /** Marca el cobro como llegado y suma su importe a la cuenta de nómina (la primera) en el mes del cobro. */
   const cobrar = useCallback(
-    async (c: Cobro) => {
-      const cobrado: Cobro = { ...c, cobrado: true, fechaCobro: hoy() }
-      const hecho = await intentar(async () => {
-        await repo.actualizarCobro(cobrado)
+    (c: Cobro) =>
+      intentar(async () => {
+        const cobrado: Cobro = { ...c, cobrado: true, fechaCobro: hoy() }
+        const nomina = ajustes.cuentas[0]
+        const ajuste = nomina ? { mes: c.mes, cuenta: nomina.id, delta: c.importe } : null
+        await repo.actualizarCobro(cobrado, ajuste)
         setCobros((prev) => prev.map((x) => (x.id === c.id ? cobrado : x)))
+        reflejarSaldo(ajuste)
         return c.id
-      })
-      const nomina = ajustes.cuentas[0]
-      if (hecho && nomina) await ajustarSaldo(c.mes, nomina.id, c.importe)
-      return hecho
-    },
-    [repo, intentar, ajustarSaldo, ajustes.cuentas],
+      }),
+    [repo, intentar, reflejarSaldo, ajustes.cuentas],
   )
 
   /** Crea un mes copiando las partidas del anterior. */
