@@ -7,6 +7,7 @@ import type { GastoFijo, GastoVariable, Ingreso } from '../domain/tipos'
 import { Resumen } from './Resumen'
 import { Reglas } from './Reglas'
 import { ApuntarGasto } from './ApuntarGasto'
+import { Notas } from './Notas'
 import { GastosDelMes } from './GastosDelMes'
 import { ListaMensual, Formulario } from './ListaMensual'
 import { PatrimonioAcumulado } from './PatrimonioAcumulado'
@@ -48,6 +49,7 @@ export function Panel({ repo }: { repo: Repositorio }) {
       {error}
       <Resumen resumen={resumen} mes={mes} onCambiarMes={setMes} />
       <Reglas reglas={reglas} />
+      <Notas notas={f.notas} onCrear={f.crearNota} onActualizar={f.actualizarNota} onBorrar={f.borrarNota} />
       <ApuntarGasto onApuntar={async (m) => {
         const nuevo = await f.crear(m)
         if (nuevo?.tipo === 'gasto') setMes(nuevo.fecha.slice(0, 7))

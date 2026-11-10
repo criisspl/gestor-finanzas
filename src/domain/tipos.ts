@@ -51,6 +51,24 @@ export type NuevoMovimiento =
   | Omit<GastoFijo, 'id'>
   | Omit<GastoVariable, 'id'>
 
+export const TIPOS_NOTA = ['ok', 'aviso', 'mal'] as const
+export type TipoNota = (typeof TIPOS_NOTA)[number]
+
+export const NOMBRE_TIPO_NOTA: Record<TipoNota, string> = {
+  ok: 'Verde',
+  aviso: 'Ámbar',
+  mal: 'Rojo',
+}
+
+/** Una nota libre de la persona: verde (todo bien), ámbar (ojo) o roja (problema). */
+export interface Nota {
+  id: string
+  tipo: TipoNota
+  titulo: string | null
+  texto: string
+}
+export type NuevaNota = Omit<Nota, 'id'>
+
 /** Lo que la persona ya tiene acumulado. Se usa en las reglas 1 y 4. */
 export interface Patrimonio {
   fondoEmergencia: number

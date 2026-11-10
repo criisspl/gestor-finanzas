@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { abrirLlave, cifrar, ContrasenaIncorrecta, crearLlave, descifrar } from './cifrado'
+import { abrirLlave, cifrar, ContrasenaIncorrecta, crearLlave, descifrar, type Sobre } from './cifrado'
 
 // Pocas iteraciones para que los tests vayan rápido; la app usa ITERACIONES
 const IT = 1000
@@ -15,7 +15,19 @@ describe('cifrado', () => {
   it('el sobre no deja ver los datos en claro', async () => {
     const sobre = await cifrar(await crearLlave('secreta123', IT), { nombre: 'Nómina' })
     expect(JSON.stringify(sobre)).not.toContain('Nómina')
-    expect(sobre).toMatchObject({ version: 1, iteraciones: IT })
+    expect(sobre).toMatchObject({ version: 2, iteraciones: IT })
+  })
+
+  it('sigue abriendo sobres de la versión 1', async () => {
+    const llave = await crearLlave('buena-contraseña', IT)
+    const v1 = { ...(await cifrar(llave, { movimientos: [] })), version: 1 as const }
+    expect(await descifrar(llave, v1)).toEqual({ movimientos: [] })
+  })
+
+  it('rechaza una versión de sobre desconocida', async () => {
+    const llave = await crearLlave('buena-contraseña', IT)
+    const futuro = { ...(await cifrar(llave, 1)), version: 3 } as unknown as Sobre
+    await expect(descifrar(llave, futuro)).rejects.toThrow('no soportada')
   })
 
   it('rechaza una contraseña incorrecta', async () => {

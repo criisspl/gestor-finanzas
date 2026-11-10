@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { abrirBoveda, crearBoveda, type AlmacenBoveda } from './boveda'
-import type { Sobre } from './cifrado'
+import { abrirLlave, cifrar, crearLlave, type Sobre } from './cifrado'
 import { ESTADO_VACIO, type Estado } from './memoria'
 
 const IT = 1000
@@ -29,6 +29,7 @@ function almacenFalso(sinCifrar: Estado | null = null) {
 
 const antiguo: Estado = {
   movimientos: [{ id: 'm1', tipo: 'ingreso', nombre: 'Nómina', importe: 1250 }],
+  notas: [],
   patrimonio: { fondoEmergencia: 900, totalInvertido: 100, actualizado: null },
 }
 
@@ -56,6 +57,32 @@ describe('bóveda', () => {
     const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
     expect(await otra.listarMovimientos()).toEqual([gasto])
     expect((await otra.leerPatrimonio()).fondoEmergencia).toBe(500)
+  })
+
+  it('las notas se guardan cifradas y se recuperan', async () => {
+    const almacen = almacenFalso()
+    const repo = await crearBoveda(almacen, 'contraseña', IT)
+    const nota = await repo.crearNota({ tipo: 'aviso', titulo: null, texto: 'Revisar suscripciones' })
+    await repo.actualizarNota({ ...nota, tipo: 'mal' })
+    expect(almacen.sobre?.cifrado).not.toContain('suscripciones')
+
+    const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    expect(await otra.listarNotas()).toEqual([{ ...nota, tipo: 'mal' }])
+    await otra.borrarNota(nota.id)
+    expect(await otra.listarNotas()).toEqual([])
+  })
+
+  it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 2', async () => {
+    const almacen = almacenFalso()
+    const llave = await crearLlave('contraseña', IT)
+    const estadoV1 = { movimientos: antiguo.movimientos, patrimonio: antiguo.patrimonio }
+    const v1: Sobre = { ...(await cifrar(llave, estadoV1)), version: 1 }
+    const repo = await abrirBoveda(almacen, v1, 'contraseña')
+    expect(await repo.listarMovimientos()).toEqual(antiguo.movimientos)
+    expect(await repo.listarNotas()).toEqual([])
+    await repo.crearNota({ tipo: 'ok', titulo: 'Hola', texto: 'x' })
+    expect(almacen.sobre?.version).toBe(2)
+    expect((await abrirLlave('contraseña', almacen.sobre!)).sal).toBe(v1.sal)
   })
 
   it('si no se puede guardar, el cambio no se aplica', async () => {
