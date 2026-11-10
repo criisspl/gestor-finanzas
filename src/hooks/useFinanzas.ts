@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Repositorio } from '../data/repositorio'
 import { PATRIMONIO_VACIO } from '../data/repositorio'
+import { ConflictoBoveda } from '../data/boveda.ts'
 import { mesDeFecha } from '../domain/ciclo.ts'
 import { hoy } from '../domain/formato.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
@@ -54,8 +55,12 @@ export function useFinanzas(repo: Repositorio) {
     setError(null)
     try {
       return await accion()
-    } catch {
-      setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
+    } catch (e) {
+      setError(
+        e instanceof ConflictoBoveda
+          ? 'Hay cambios guardados desde otro dispositivo. Recarga la página para verlos; este cambio no se guardó.'
+          : 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.',
+      )
       return null
     }
   }, [])
