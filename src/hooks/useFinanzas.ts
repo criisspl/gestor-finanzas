@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Repositorio } from '../data/repositorio'
 import { PATRIMONIO_VACIO } from '../data/repositorio'
 import { mesDeFecha } from '../domain/ciclo.ts'
+import { hoy } from '../domain/formato.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
 import {
   AJUSTES_POR_DEFECTO,
-  type Ajustes, type DatosMes, type GastoVariable, type Meses, type Movimiento, type Nota, type NuevaNota, type NuevaPartida,
-  type NuevoMovimiento, type Partida, type Patrimonio, type Recibos,
+  type Ajustes, type Cobro, type DatosMes, type Deuda, type GastoVariable, type Meses, type Movimiento, type Nota, type NuevaDeuda, type NuevaNota,
+  type NuevaPartida, type NuevoCobro, type NuevoMovimiento, type NuevoPagoDeuda, type PagoDeuda, type Partida, type Patrimonio, type Recibos,
 } from '../domain/tipos.ts'
 
 /** Carga los datos de la persona y expone las operaciones para cambiarlos. */
@@ -18,13 +19,17 @@ export function useFinanzas(repo: Repositorio) {
   const [recibos, setRecibos] = useState<Recibos>({})
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_POR_DEFECTO)
   const [meses, setMeses] = useState<Meses>({})
+  const [deudas, setDeudas] = useState<Deuda[]>([])
+  const [pagos, setPagos] = useState<PagoDeuda[]>([])
+  const [cobros, setCobros] = useState<Cobro[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let vigente = true
-    Promise.all([repo.listarMovimientos(), repo.listarNotas(), repo.leerPatrimonio(), repo.listarPartidas(), repo.listarRecibos(), repo.leerAjustes(), repo.listarMeses()])
-      .then(([m, n, p, pt, r, aj, me]) => {
+    Promise.all([repo.listarMovimientos(), repo.listarNotas(), repo.leerPatrimonio(), repo.listarPartidas(), repo.listarRecibos(), repo.leerAjustes(), repo.listarMeses(),
+      repo.listarDeudas(), repo.listarPagos(), repo.listarCobros()])
+      .then(([m, n, p, pt, r, aj, me, de, pa, co]) => {
         if (!vigente) return
         setMovimientos(m)
         setNotas(n)
@@ -33,6 +38,9 @@ export function useFinanzas(repo: Repositorio) {
         setRecibos(r)
         setAjustes(aj)
         setMeses(me)
+        setDeudas(de)
+        setPagos(pa)
+        setCobros(co)
       })
       .catch(() => vigente && setError('No se pudieron cargar tus datos. Recarga la página.'))
       .finally(() => vigente && setCargando(false))
@@ -221,6 +229,112 @@ export function useFinanzas(repo: Repositorio) {
     [repo, intentar],
   )
 
+  const crearDeuda = useCallback(
+    (d: NuevaDeuda) =>
+      intentar(async () => {
+        const nueva = await repo.crearDeuda(d)
+        setDeudas((prev) => [...prev, nueva])
+        return nueva
+      }),
+    [repo, intentar],
+  )
+
+  const actualizarDeuda = useCallback(
+    (d: Deuda) =>
+      intentar(async () => {
+        await repo.actualizarDeuda(d)
+        setDeudas((prev) => prev.map((x) => (x.id === d.id ? d : x)))
+        return d
+      }),
+    [repo, intentar],
+  )
+
+  /** Borra la deuda con sus pagos y los gastos que esos pagos crearon. */
+  const borrarDeuda = useCallback(
+    (id: string) =>
+      intentar(async () => {
+        await repo.borrarDeuda(id)
+        const gastos = new Set(pagos.filter((p) => p.deuda === id).map((p) => p.gasto))
+        setDeudas((prev) => prev.filter((x) => x.id !== id))
+        setPagos((prev) => prev.filter((p) => p.deuda !== id))
+        setMovimientos((prev) => prev.filter((m) => !gastos.has(m.id)))
+        return id
+      }),
+    [repo, intentar, pagos],
+  )
+
+  /** Registra un pago parcial; con `gasto` también lo apunta como gasto de una partida, enlazado al pago. */
+  const pagarDeuda = useCallback(
+    (pago: NuevoPagoDeuda, gasto: Omit<GastoVariable, 'id'> | null) =>
+      intentar(async () => {
+        const hecho = await repo.registrarPago(pago, gasto)
+        setPagos((prev) => [...prev, hecho.pago])
+        if (hecho.gasto) {
+          const nuevo = hecho.gasto
+          setMovimientos((prev) => [...prev, nuevo])
+        }
+        return hecho.pago
+      }),
+    [repo, intentar],
+  )
+
+  const borrarPago = useCallback(
+    (p: PagoDeuda) =>
+      intentar(async () => {
+        await repo.borrarPago(p.id)
+        setPagos((prev) => prev.filter((x) => x.id !== p.id))
+        setMovimientos((prev) => prev.filter((m) => m.id !== p.gasto))
+        return p.id
+      }),
+    [repo, intentar],
+  )
+
+  const crearCobro = useCallback(
+    (c: NuevoCobro) =>
+      intentar(async () => {
+        const nuevo = await repo.crearCobro(c)
+        setCobros((prev) => [...prev, nuevo])
+        return nuevo
+      }),
+    [repo, intentar],
+  )
+
+  const actualizarCobro = useCallback(
+    (c: Cobro) =>
+      intentar(async () => {
+        await repo.actualizarCobro(c)
+        setCobros((prev) => prev.map((x) => (x.id === c.id ? c : x)))
+        return c
+      }),
+    [repo, intentar],
+  )
+
+  const borrarCobro = useCallback(
+    (id: string) =>
+      intentar(async () => {
+        await repo.borrarCobro(id)
+        setCobros((prev) => prev.filter((x) => x.id !== id))
+        return id
+      }),
+    [repo, intentar],
+  )
+
+  /** Marca el cobro como llegado y suma su importe a la cuenta de nómina (la primera) en el mes del cobro. */
+  const cobrar = useCallback(
+    async (c: Cobro) => {
+      const cobrado: Cobro = { ...c, cobrado: true, fechaCobro: hoy() }
+      const hecho = await intentar(async () => {
+        await repo.actualizarCobro(cobrado)
+        setCobros((prev) => prev.map((x) => (x.id === c.id ? cobrado : x)))
+        return c.id
+      })
+      const nomina = ajustes.cuentas[0]
+      if (hecho && nomina) await ajustarSaldo(c.mes, nomina.id, c.importe)
+      return hecho
+    },
+    [repo, intentar, ajustarSaldo, ajustes.cuentas],
+  )
+
   /** Crea un mes copiando las partidas del anterior. */
   const crearMes = useCallback(
     (mes: string, copiarDe: string | null) =>
@@ -235,9 +349,10 @@ export function useFinanzas(repo: Repositorio) {
   )
 
   return {
-    movimientos, notas, patrimonio, partidas, recibos, ajustes, meses, cargando, error,
+    movimientos, notas, patrimonio, partidas, recibos, ajustes, meses, deudas, pagos, cobros, cargando, error,
     crear, actualizar, borrar, crearNota, actualizarNota, borrarNota, guardarPatrimonio,
     crearPartida, actualizarPartida, borrarPartida, marcarRecibo,
     apuntarGasto, borrarGasto, guardarAjustes, guardarMes, crearMes,
+    crearDeuda, actualizarDeuda, borrarDeuda, pagarDeuda, borrarPago, crearCobro, actualizarCobro, borrarCobro, cobrar,
   }
 }

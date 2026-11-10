@@ -58,6 +58,9 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
         recibos: {},
         ajustes: AJUSTES_POR_DEFECTO,
         meses: {},
+        deudas: [],
+        pagos: [],
+        cobros: [],
         patrimonio: pat.data
           ? {
               fondoEmergencia: Number(pat.data.fondo_emergencia),

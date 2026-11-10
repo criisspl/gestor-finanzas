@@ -32,6 +32,9 @@ function ejemplo(): Estado {
       cuentas: [{ id: 'c1', nombre: 'Cuenta nómina' }, { id: 'c2', nombre: 'Cuenta gastos' }, { id: 'c3', nombre: 'Ahorro' }],
     },
     meses: { [mes]: { nomina: 1250, nominaRecibida: true, arrastreReal: null, saldos: { c1: 700, c2: 300 } } },
+    deudas: [{ id: 'd1', nombre: 'Préstamo a plazos', detalle: 'Cuota semanal', importe: 300, estado: 'aviso', estadoTexto: 'Vence a fin de mes' }],
+    pagos: [{ id: 'pg1', deuda: 'd1', importe: 100, fecha: `${mes}-02`, gasto: null }],
+    cobros: [{ id: 'co1', mes, nombre: 'Bizum de una amiga', detalle: 'Viaje', importe: 40, cobrado: false, fechaCobro: null }],
     notas: [{ id: 'n1', tipo: 'ok', titulo: 'Bien encaminada', texto: 'Este mes el fondo de emergencia sigue creciendo.' }],
     patrimonio: { fondoEmergencia: 1200, totalInvertido: 3400, actualizado: hoy() },
   }
