@@ -34,6 +34,15 @@ function csp(supabaseUrl: string | undefined): Plugin {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), csp(loadEnv(mode, '.', 'VITE_').VITE_SUPABASE_URL)],
   test: {
-    include: ['src/**/*.test.ts'],
+    // Los tests de componentes (*.tsx) declaran `// @vitest-environment jsdom`; los de lógica corren en node
+    include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/main.tsx', 'src/vite-env.d.ts'],
+      reporter: ['text'],
+      // Umbral suave: por debajo del estado actual, solo para que no se desplome
+      thresholds: { statements: 30, lines: 30 },
+    },
   },
 }))
