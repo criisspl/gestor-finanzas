@@ -18,6 +18,7 @@ import { RecibosDelMes } from './RecibosDelMes'
 import { Pestanas } from './Pestanas'
 import { Traspasos } from './Traspasos'
 import { ResumenCuentas } from './ResumenCuentas'
+import { CambiarContrasena } from './CambiarContrasena'
 
 // Secciones secundarias o pesadas: se cargan en un chunk aparte
 const Cobros = lazy(() => import('./Cobros').then((m) => ({ default: m.Cobros })))
@@ -152,6 +153,7 @@ export function Panel({ repo }: { repo: Repositorio }) {
       <Suspense fallback={cargandoSeccion}>
         <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} />
       </Suspense>
+      {repo.cambiarContrasena && <CambiarContrasena onCambiar={repo.cambiarContrasena} />}
     </>
   )
 }

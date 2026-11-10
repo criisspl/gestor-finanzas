@@ -1,9 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { abrirBoveda, crearBoveda, type AlmacenBoveda } from '../data/boveda'
+import { abrirBoveda, CONTRASENA_MINIMA, crearBoveda, type AlmacenBoveda } from '../data/boveda'
 import { ContrasenaIncorrecta, type Sobre } from '../data/cifrado'
 import type { Repositorio } from '../data/repositorio'
-
-const MINIMO = 8
 
 /**
  * Pide la contraseña con la que se cifran los datos en este navegador.
@@ -45,7 +43,7 @@ export function Desbloqueo({ almacen, onAbierto }: { almacen: AlmacenBoveda; onA
           : 'Tus datos están cifrados. Escribe tu contraseña para verlos en este dispositivo.'}
       </p>
       <label className="campo">Contraseña
-        <input type="password" autoComplete={nueva ? 'new-password' : 'current-password'} minLength={nueva ? MINIMO : undefined} value={contrasena} onChange={(e) => setContrasena(e.target.value)} required autoFocus />
+        <input type="password" autoComplete={nueva ? 'new-password' : 'current-password'} minLength={nueva ? CONTRASENA_MINIMA : undefined} value={contrasena} onChange={(e) => setContrasena(e.target.value)} required autoFocus />
       </label>
       {nueva && (
         <label className="campo">Repite la contraseña

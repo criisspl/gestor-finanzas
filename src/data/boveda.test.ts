@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { abrirBoveda, crearBoveda, type AlmacenBoveda } from './boveda'
-import { abrirLlave, cifrar, crearLlave, type Sobre } from './cifrado'
+import { abrirBoveda, ConflictoBoveda, crearBoveda, type AlmacenBoveda } from './boveda'
+import { abrirLlave, cifrar, ContrasenaIncorrecta, crearLlave, type Sobre } from './cifrado'
 import { AJUSTES_POR_DEFECTO } from '../domain/tipos'
 import { ESTADO_VACIO, type Estado } from './memoria'
 
@@ -11,11 +11,13 @@ function almacenFalso(sinCifrar: Estado | null = null) {
     sobre: null as Sobre | null,
     sinCifrar,
     fallarEscritura: false,
+    conflicto: false,
     async leer() {
       return a.sobre
     },
     async escribir(s: Sobre) {
       if (a.fallarEscritura) throw new Error('sin red')
+      if (a.conflicto) throw new ConflictoBoveda()
       a.sobre = s
     },
     async leerSinCifrar() {
@@ -221,5 +223,61 @@ describe('bóveda', () => {
     ])
     const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
     expect((await otra.listarMovimientos()).map((m) => m.nombre)).toEqual(['A', 'B'])
+  })
+  describe('cambiar la contraseña', () => {
+    it('cifra con la nueva y con sal nueva; la vieja deja de valer', async () => {
+      const almacen = almacenFalso(antiguo)
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      const salVieja = almacen.sobre!.sal
+      await repo.cambiarContrasena!('contraseña', 'otra-contraseña')
+      expect(almacen.sobre!.sal).not.toBe(salVieja)
+
+      const otra = await abrirBoveda(almacen, almacen.sobre!, 'otra-contraseña')
+      expect(await otra.listarMovimientos()).toEqual(antiguo.movimientos)
+      await expect(abrirBoveda(almacen, almacen.sobre!, 'contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
+    })
+
+    it('los guardados posteriores usan la contraseña nueva', async () => {
+      const almacen = almacenFalso()
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      await repo.cambiarContrasena!('contraseña', 'otra-contraseña')
+      await repo.crearMovimiento({ tipo: 'ingreso', nombre: 'Extra', importe: 5 })
+      const otra = await abrirBoveda(almacen, almacen.sobre!, 'otra-contraseña')
+      expect((await otra.listarMovimientos()).map((m) => m.nombre)).toEqual(['Extra'])
+    })
+
+    it('con la contraseña actual mala no cambia nada', async () => {
+      const almacen = almacenFalso(antiguo)
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      const antes = almacen.sobre
+      await expect(repo.cambiarContrasena!('equivocada', 'otra-contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
+      expect(almacen.sobre).toBe(antes)
+      await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    })
+
+    it('si falla el guardado, la contraseña vieja sigue valiendo', async () => {
+      const almacen = almacenFalso(antiguo)
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      const antes = almacen.sobre
+      almacen.fallarEscritura = true
+      await expect(repo.cambiarContrasena!('contraseña', 'otra-contraseña')).rejects.toThrow('sin red')
+      almacen.fallarEscritura = false
+      expect(almacen.sobre).toBe(antes)
+      // la sesión sigue guardando con la vieja
+      await repo.crearMovimiento({ tipo: 'ingreso', nombre: 'Extra', importe: 5 })
+      const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+      expect((await otra.listarMovimientos()).map((m) => m.nombre)).toEqual(['Nómina', 'Extra'])
+      await expect(abrirBoveda(almacen, almacen.sobre!, 'otra-contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
+    })
+
+    it('si hay conflicto con otro dispositivo, lanza ConflictoBoveda y no cambia nada', async () => {
+      const almacen = almacenFalso(antiguo)
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      const antes = almacen.sobre
+      almacen.conflicto = true
+      await expect(repo.cambiarContrasena!('contraseña', 'otra-contraseña')).rejects.toBeInstanceOf(ConflictoBoveda)
+      expect(almacen.sobre).toBe(antes)
+      await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    })
   })
 })
