@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { Repositorio } from '../data/repositorio'
 import { useFinanzas } from '../hooks/useFinanzas'
 import { calcularReglas, resumirMes } from '../domain/reglas'
@@ -11,19 +11,24 @@ import type { GastoFijo, GastoVariable, Ingreso } from '../domain/tipos'
 import { Resumen } from './Resumen'
 import { Reglas } from './Reglas'
 import { ApuntarGasto } from './ApuntarGasto'
-import { Notas } from './Notas'
 import { GastosDelMes } from './GastosDelMes'
 import { ListaMensual, Formulario } from './ListaMensual'
 import { PatrimonioAcumulado } from './PatrimonioAcumulado'
-import { Reparto } from './Reparto'
 import { RecibosDelMes } from './RecibosDelMes'
 import { Pestanas } from './Pestanas'
-import { CierreMes } from './CierreMes'
 import { Traspasos } from './Traspasos'
 import { ResumenCuentas } from './ResumenCuentas'
-import { Ajustes } from './Ajustes'
-import { Cobros } from './Cobros'
-import { Deudas } from './Deudas'
+import { CambiarContrasena } from './CambiarContrasena'
+
+// Secciones secundarias o pesadas: se cargan en un chunk aparte
+const Cobros = lazy(() => import('./Cobros').then((m) => ({ default: m.Cobros })))
+const Reparto = lazy(() => import('./Reparto').then((m) => ({ default: m.Reparto })))
+const Deudas = lazy(() => import('./Deudas').then((m) => ({ default: m.Deudas })))
+const Notas = lazy(() => import('./Notas').then((m) => ({ default: m.Notas })))
+const CierreMes = lazy(() => import('./CierreMes').then((m) => ({ default: m.CierreMes })))
+const Ajustes = lazy(() => import('./Ajustes').then((m) => ({ default: m.Ajustes })))
+
+const cargandoSeccion = <p className="estado">Cargando…</p>
 
 /** Días desde el inicio del mes en los que se ofrece «Ha llegado la nómina» sin tener que pedirlo. */
 const DIAS_CIERRE = 5
@@ -93,8 +98,10 @@ export function Panel({ repo }: { repo: Repositorio }) {
   const cuentas = f.ajustes.cuentas
   const automatico = mes === actual && !datos.nominaRecibida && diasDesdeInicio(mes, dia, hoy()) <= DIAS_CIERRE
   const cierre = (automatico || cierreAbierto) ? (
-    <CierreMes key={mes} nombreMes={nombreMes(mes).toLowerCase()} datos={datos} cuentas={cuentas} nominaPrevista={ingresoMes}
-      onGuardar={f.guardarMes.bind(null, mes)} onCerrar={() => setCierreAbierto(false)} />
+    <Suspense fallback={cargandoSeccion}>
+      <CierreMes key={mes} nombreMes={nombreMes(mes).toLowerCase()} datos={datos} cuentas={cuentas} nominaPrevista={ingresoMes}
+        onGuardar={f.guardarMes.bind(null, mes)} onCerrar={() => setCierreAbierto(false)} />
+    </Suspense>
   ) : (
     <button type="button" className="anadir" onClick={() => setCierreAbierto(true)}>¿Ha llegado la nómina de {nombreMes(mes).toLowerCase()}? Apuntarla aquí</button>
   )
@@ -114,15 +121,23 @@ export function Panel({ repo }: { repo: Repositorio }) {
       {cierre}
       {traspasos}
       {cuentasResumen}
-      <Cobros mes={mes} cobros={f.cobros} onCrear={f.crearCobro} onActualizar={f.actualizarCobro} onBorrar={f.borrarCobro} onCobrar={f.cobrar} />
+      <Suspense fallback={cargandoSeccion}>
+        <Cobros mes={mes} cobros={f.cobros} onCrear={f.crearCobro} onActualizar={f.actualizarCobro} onBorrar={f.borrarCobro} onCobrar={f.cobrar} />
+      </Suspense>
       <Resumen resumen={resumen} mes={mes} />
       <Reglas reglas={reglas} />
-      <Reparto mes={mes} partidas={partidasMes} gastos={todosGastos} ingreso={resumen.ingreso} diaInicio={dia} cuentas={f.ajustes.cuentas}
-        onCrear={f.crearPartida} onActualizar={f.actualizarPartida} onBorrar={f.borrarPartida} />
+      <Suspense fallback={cargandoSeccion}>
+        <Reparto mes={mes} partidas={partidasMes} gastos={todosGastos} ingreso={resumen.ingreso} diaInicio={dia} cuentas={f.ajustes.cuentas}
+          onCrear={f.crearPartida} onActualizar={f.actualizarPartida} onBorrar={f.borrarPartida} />
+      </Suspense>
       <RecibosDelMes fijos={fijos} recibos={f.recibos} mes={mes} onMarcar={f.marcarRecibo} />
-      <Deudas deudas={f.deudas} pagos={f.pagos} partidas={f.partidas} diaInicio={dia} onCrear={f.crearDeuda} onActualizar={f.actualizarDeuda}
-        onBorrar={f.borrarDeuda} onPagar={f.pagarDeuda} onBorrarPago={f.borrarPago} />
-      <Notas notas={f.notas} onCrear={f.crearNota} onActualizar={f.actualizarNota} onBorrar={f.borrarNota} />
+      <Suspense fallback={cargandoSeccion}>
+        <Deudas deudas={f.deudas} pagos={f.pagos} partidas={f.partidas} diaInicio={dia} onCrear={f.crearDeuda} onActualizar={f.actualizarDeuda}
+          onBorrar={f.borrarDeuda} onPagar={f.pagarDeuda} onBorrarPago={f.borrarPago} />
+      </Suspense>
+      <Suspense fallback={cargandoSeccion}>
+        <Notas notas={f.notas} onCrear={f.crearNota} onActualizar={f.actualizarNota} onBorrar={f.borrarNota} />
+      </Suspense>
       <ApuntarGasto partidas={f.partidas} diaInicio={dia} cuentas={f.ajustes.cuentas} onApuntar={async (m) => {
         const nuevo = await f.apuntarGasto(m)
         if (nuevo?.tipo === 'gasto') setElegido(mesDeFecha(nuevo.fecha, dia))
@@ -135,7 +150,10 @@ export function Panel({ repo }: { repo: Repositorio }) {
         items={fijos} textoVacio="Sin gastos fijos todavía." textoAnadir="+ Añadir gasto fijo"
         onCrear={f.crear} onActualizar={f.actualizar} onBorrar={f.borrar} />
       <PatrimonioAcumulado patrimonio={f.patrimonio} onGuardar={f.guardarPatrimonio} />
-      <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} />
+      <Suspense fallback={cargandoSeccion}>
+        <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} />
+      </Suspense>
+      {repo.cambiarContrasena && <CambiarContrasena onCambiar={repo.cambiarContrasena} />}
     </>
   )
 }

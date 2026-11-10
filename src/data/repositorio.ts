@@ -55,6 +55,11 @@ export interface Repositorio {
   borrarCobro(id: string): Promise<void>
   leerPatrimonio(): Promise<Patrimonio>
   guardarPatrimonio(p: Omit<Patrimonio, 'actualizado'>): Promise<Patrimonio>
+  /**
+   * Solo existe si los datos van cifrados con contraseña (no en modo demo).
+   * Lanza ContrasenaIncorrecta si `actual` no abre la bóveda; si no se puede guardar, la contraseña anterior sigue valiendo.
+   */
+  cambiarContrasena?(actual: string, nueva: string): Promise<void>
 }
 
 export const PATRIMONIO_VACIO: Patrimonio = { fondoEmergencia: 0, totalInvertido: 0, actualizado: null }
