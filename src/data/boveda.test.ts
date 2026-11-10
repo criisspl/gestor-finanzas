@@ -31,6 +31,8 @@ const antiguo: Estado = {
   movimientos: [{ id: 'm1', tipo: 'ingreso', nombre: 'Nómina', importe: 1250 }],
   notas: [],
   patrimonio: { fondoEmergencia: 900, totalInvertido: 100, actualizado: null },
+  partidas: [],
+  recibos: {},
 }
 
 describe('bóveda', () => {
@@ -72,7 +74,40 @@ describe('bóveda', () => {
     expect(await otra.listarNotas()).toEqual([])
   })
 
-  it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 2', async () => {
+  it('partidas, gastos con partida y recibos se guardan cifrados y se recuperan', async () => {
+    const almacen = almacenFalso()
+    const repo = await crearBoveda(almacen, 'contraseña', IT)
+    const partida = await repo.crearPartida({ mes: '2026-11', nombre: 'Comida secreta', detalle: null, importe: 250, variable: true, orden: 1 })
+    const gasto = await repo.crearMovimiento({ tipo: 'gasto', nombre: 'Súper', importe: 40, categoria: 'esencial', fecha: '2026-11-02', partida: partida.id })
+    await repo.marcarRecibo('2026-11', 'f1', true)
+    expect(almacen.sobre?.version).toBe(3)
+    expect(almacen.sobre?.cifrado).not.toContain('secreta')
+
+    const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    expect(await otra.listarPartidas()).toEqual([partida])
+    expect(await otra.listarMovimientos()).toEqual([gasto])
+    expect(await otra.listarRecibos()).toEqual({ '2026-11': ['f1'] })
+
+    // al borrar la partida el gasto se conserva, sin partida
+    await otra.borrarPartida(partida.id)
+    expect(await otra.listarPartidas()).toEqual([])
+    expect(await otra.listarMovimientos()).toEqual([{ ...gasto, partida: null }])
+  })
+
+  it('abre un sobre de la versión 2 (sin partidas ni recibos) y lo guarda ya como versión 3', async () => {
+    const almacen = almacenFalso()
+    const llave = await crearLlave('contraseña', IT)
+    const nota = { id: 'n1', tipo: 'ok', titulo: null, texto: 'x' }
+    const v2: Sobre = { ...(await cifrar(llave, { movimientos: antiguo.movimientos, notas: [nota], patrimonio: antiguo.patrimonio })), version: 2 }
+    const repo = await abrirBoveda(almacen, v2, 'contraseña')
+    expect(await repo.listarNotas()).toEqual([nota])
+    expect(await repo.listarPartidas()).toEqual([])
+    expect(await repo.listarRecibos()).toEqual({})
+    await repo.marcarRecibo('2026-11', 'f1', true)
+    expect(almacen.sobre?.version).toBe(3)
+  })
+
+  it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 3', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
     const estadoV1 = { movimientos: antiguo.movimientos, patrimonio: antiguo.patrimonio }
@@ -80,8 +115,9 @@ describe('bóveda', () => {
     const repo = await abrirBoveda(almacen, v1, 'contraseña')
     expect(await repo.listarMovimientos()).toEqual(antiguo.movimientos)
     expect(await repo.listarNotas()).toEqual([])
+    expect(await repo.listarPartidas()).toEqual([])
     await repo.crearNota({ tipo: 'ok', titulo: 'Hola', texto: 'x' })
-    expect(almacen.sobre?.version).toBe(2)
+    expect(almacen.sobre?.version).toBe(3)
     expect((await abrirLlave('contraseña', almacen.sobre!)).sal).toBe(v1.sal)
   })
 

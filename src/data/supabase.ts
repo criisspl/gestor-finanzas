@@ -53,6 +53,8 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
       return {
         movimientos: (movs.data as FilaMovimiento[]).map(aMovimiento),
         notas: [],
+        partidas: [],
+        recibos: {},
         patrimonio: pat.data
           ? {
               fondoEmergencia: Number(pat.data.fondo_emergencia),

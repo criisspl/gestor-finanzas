@@ -43,6 +43,8 @@ export interface GastoVariable {
   categoria: Categoria
   /** Fecha en formato YYYY-MM-DD */
   fecha: string
+  /** Partida del reparto a la que cuenta. Opcional: los gastos anteriores no la tienen. */
+  partida?: string | null
 }
 
 export type Movimiento = Ingreso | GastoFijo | GastoVariable
@@ -50,6 +52,25 @@ export type NuevoMovimiento =
   | Omit<Ingreso, 'id'>
   | Omit<GastoFijo, 'id'>
   | Omit<GastoVariable, 'id'>
+
+/**
+ * Una parte del reparto de la nómina de un mes, con su presupuesto. Las variables cuentan solo lo
+ * apuntado; las fijas cuentan el presupuesto entero (o lo apuntado, si es más).
+ */
+export interface Partida {
+  id: string
+  /** Mes en formato YYYY-MM */
+  mes: string
+  nombre: string
+  detalle: string | null
+  importe: number
+  variable: boolean
+  orden: number
+}
+export type NuevaPartida = Omit<Partida, 'id'>
+
+/** Recibos fijos que ya han llegado: ids de gastos fijos marcados, por mes (YYYY-MM). */
+export type Recibos = Record<string, string[]>
 
 export const TIPOS_NOTA = ['ok', 'aviso', 'mal'] as const
 export type TipoNota = (typeof TIPOS_NOTA)[number]

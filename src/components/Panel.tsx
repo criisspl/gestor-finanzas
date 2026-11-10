@@ -11,6 +11,8 @@ import { Notas } from './Notas'
 import { GastosDelMes } from './GastosDelMes'
 import { ListaMensual, Formulario } from './ListaMensual'
 import { PatrimonioAcumulado } from './PatrimonioAcumulado'
+import { Reparto } from './Reparto'
+import { RecibosDelMes } from './RecibosDelMes'
 
 /** Pantalla principal con los datos de la persona que ha entrado. */
 export function Panel({ repo }: { repo: Repositorio }) {
@@ -21,7 +23,10 @@ export function Panel({ repo }: { repo: Repositorio }) {
   const reglas = useMemo(() => calcularReglas(resumen, f.patrimonio), [resumen, f.patrimonio])
   const ingresos = f.movimientos.filter((m): m is Ingreso => m.tipo === 'ingreso')
   const fijos = f.movimientos.filter((m): m is GastoFijo => m.tipo === 'fijo')
-  const variables = f.movimientos.filter((m): m is GastoVariable => m.tipo === 'gasto' && m.fecha.startsWith(mes))
+  const todosGastos = f.movimientos.filter((m): m is GastoVariable => m.tipo === 'gasto')
+  const variables = todosGastos.filter((m) => m.fecha.startsWith(mes))
+
+  const partidasMes = f.partidas.filter((p) => p.mes === mes)
 
   if (f.cargando) return <p className="estado">Cargando tus datos…</p>
 
@@ -49,13 +54,16 @@ export function Panel({ repo }: { repo: Repositorio }) {
       {error}
       <Resumen resumen={resumen} mes={mes} onCambiarMes={setMes} />
       <Reglas reglas={reglas} />
+      <Reparto mes={mes} partidas={partidasMes} gastos={todosGastos} ingreso={resumen.ingreso}
+        onCrear={f.crearPartida} onActualizar={f.actualizarPartida} onBorrar={f.borrarPartida} />
+      <RecibosDelMes fijos={fijos} recibos={f.recibos} mes={mes} onMarcar={f.marcarRecibo} />
       <Notas notas={f.notas} onCrear={f.crearNota} onActualizar={f.actualizarNota} onBorrar={f.borrarNota} />
-      <ApuntarGasto onApuntar={async (m) => {
+      <ApuntarGasto partidas={f.partidas} onApuntar={async (m) => {
         const nuevo = await f.crear(m)
         if (nuevo?.tipo === 'gasto') setMes(nuevo.fecha.slice(0, 7))
         return nuevo
       }} />
-      <GastosDelMes gastos={variables} mes={mes} onBorrar={f.borrar} />
+      <GastosDelMes gastos={variables} partidas={f.partidas} mes={mes} onBorrar={f.borrar} />
       <ListaMensual tipo="ingreso" titulo="Ingresos mensuales" items={ingresos} textoVacio="Sin ingresos todavía." textoAnadir="+ Añadir ingreso"
         onCrear={f.crear} onActualizar={f.actualizar} onBorrar={f.borrar} />
       <ListaMensual tipo="fijo" titulo="Gastos fijos" subtitulo="Lo que pagas todos los meses. Cuentan en cada mes automáticamente."

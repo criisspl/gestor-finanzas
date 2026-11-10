@@ -15,7 +15,7 @@ describe('cifrado', () => {
   it('el sobre no deja ver los datos en claro', async () => {
     const sobre = await cifrar(await crearLlave('secreta123', IT), { nombre: 'Nómina' })
     expect(JSON.stringify(sobre)).not.toContain('Nómina')
-    expect(sobre).toMatchObject({ version: 2, iteraciones: IT })
+    expect(sobre).toMatchObject({ version: 3, iteraciones: IT })
   })
 
   it('sigue abriendo sobres de la versión 1', async () => {
@@ -24,9 +24,15 @@ describe('cifrado', () => {
     expect(await descifrar(llave, v1)).toEqual({ movimientos: [] })
   })
 
+  it('sigue abriendo sobres de la versión 2', async () => {
+    const llave = await crearLlave('buena-contraseña', IT)
+    const v2 = { ...(await cifrar(llave, { notas: [] })), version: 2 as const }
+    expect(await descifrar(llave, v2)).toEqual({ notas: [] })
+  })
+
   it('rechaza una versión de sobre desconocida', async () => {
     const llave = await crearLlave('buena-contraseña', IT)
-    const futuro = { ...(await cifrar(llave, 1)), version: 3 } as unknown as Sobre
+    const futuro = { ...(await cifrar(llave, 1)), version: 4 } as unknown as Sobre
     await expect(descifrar(llave, futuro)).rejects.toThrow('no soportada')
   })
 
