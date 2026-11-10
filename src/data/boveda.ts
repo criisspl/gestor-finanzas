@@ -2,6 +2,14 @@ import { abrirLlave, cifrar, crearLlave, descifrar, ITERACIONES, type Llave, typ
 import { ESTADO_VACIO, normalizarEstado, repositorioEnMemoria, type Estado } from './memoria'
 import type { Repositorio } from './repositorio'
 
+/** Otro dispositivo o pestaña guardó la bóveda después de que esta la leyera. */
+export class ConflictoBoveda extends Error {
+  constructor() {
+    super('Hay cambios guardados desde otro dispositivo')
+    this.name = 'ConflictoBoveda'
+  }
+}
+
 /** Dónde vive el sobre cifrado de una persona. En producción es una fila de Supabase. */
 export interface AlmacenBoveda {
   leer(): Promise<Sobre | null>

@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Movimiento } from '../domain/tipos'
-import type { AlmacenBoveda } from './boveda'
+import { ConflictoBoveda, type AlmacenBoveda } from './boveda.ts'
 import type { Sobre } from './cifrado'
 import { AJUSTES_POR_DEFECTO } from '../domain/tipos.ts'
 import { PATRIMONIO_VACIO } from './repositorio'
@@ -33,15 +33,36 @@ function aMovimiento(f: FilaMovimiento): Movimiento {
  * son de la versión sin cifrar y solo se leen para migrar sus datos a la bóveda.
  */
 export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBoveda {
+  // Marca de la última versión que esta pestaña leyó o escribió; null = aún no hay fila; undefined = sin leer
+  let ultima: string | null | undefined
+
   return {
     async leer() {
-      const { data, error } = await db.from('bovedas').select('version,sal,iteraciones,iv,cifrado').maybeSingle()
+      const { data, error } = await db.from('bovedas').select('version,sal,iteraciones,iv,cifrado,updated_at').maybeSingle()
       if (error) throw error
-      return data as Sobre | null
+      ultima = data ? (data.updated_at as string) : null
+      if (!data) return null
+      const { version, sal, iteraciones, iv, cifrado } = data
+      return { version, sal, iteraciones, iv, cifrado } as Sobre
     },
+    /**
+     * Control optimista: solo se escribe si la fila sigue en la versión que esta pestaña leyó.
+     * Si otra pestaña o dispositivo guardó antes, lanza ConflictoBoveda y no pisa sus datos.
+     */
     async escribir(sobre) {
-      const { error } = await db.from('bovedas').upsert({ user_id: userId, ...sobre, updated_at: new Date().toISOString() })
+      if (ultima === undefined) await this.leer()
+      const fila = { ...sobre, updated_at: new Date().toISOString() }
+      if (ultima === null) {
+        const { data, error } = await db.from('bovedas').insert({ user_id: userId, ...fila }).select('updated_at').single()
+        // 23505: la fila ya existe, la creó otro dispositivo mientras tanto
+        if (error) throw error.code === '23505' ? new ConflictoBoveda() : error
+        ultima = data.updated_at as string
+        return
+      }
+      const { data, error } = await db.from('bovedas').update(fila).eq('user_id', userId).eq('updated_at', ultima).select('updated_at')
       if (error) throw error
+      if (!data || data.length === 0) throw new ConflictoBoveda()
+      ultima = data[0].updated_at as string
     },
     async leerSinCifrar() {
       const [movs, pat] = await Promise.all([
