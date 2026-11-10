@@ -1,24 +1,29 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Repositorio } from '../data/repositorio'
 import { PATRIMONIO_VACIO } from '../data/repositorio'
-import type { Movimiento, Nota, NuevaNota, NuevoMovimiento, Patrimonio } from '../domain/tipos'
+import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
+import type { Movimiento, Nota, NuevaNota, NuevaPartida, NuevoMovimiento, Partida, Patrimonio, Recibos } from '../domain/tipos'
 
 /** Carga los datos de la persona y expone las operaciones para cambiarlos. */
 export function useFinanzas(repo: Repositorio) {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [notas, setNotas] = useState<Nota[]>([])
   const [patrimonio, setPatrimonio] = useState<Patrimonio>(PATRIMONIO_VACIO)
+  const [partidas, setPartidas] = useState<Partida[]>([])
+  const [recibos, setRecibos] = useState<Recibos>({})
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let vigente = true
-    Promise.all([repo.listarMovimientos(), repo.listarNotas(), repo.leerPatrimonio()])
-      .then(([m, n, p]) => {
+    Promise.all([repo.listarMovimientos(), repo.listarNotas(), repo.leerPatrimonio(), repo.listarPartidas(), repo.listarRecibos()])
+      .then(([m, n, p, pt, r]) => {
         if (!vigente) return
         setMovimientos(m)
         setNotas(n)
         setPatrimonio(p)
+        setPartidas(pt)
+        setRecibos(r)
       })
       .catch(() => vigente && setError('No se pudieron cargar tus datos. Recarga la página.'))
       .finally(() => vigente && setCargando(false))
@@ -108,5 +113,50 @@ export function useFinanzas(repo: Repositorio) {
     [repo, intentar],
   )
 
-  return { movimientos, notas, patrimonio, cargando, error, crear, actualizar, borrar, crearNota, actualizarNota, borrarNota, guardarPatrimonio }
+  const crearPartida = useCallback(
+    (p: NuevaPartida) =>
+      intentar(async () => {
+        const nueva = await repo.crearPartida(p)
+        setPartidas((prev) => [...prev, nueva])
+        return nueva
+      }),
+    [repo, intentar],
+  )
+
+  const actualizarPartida = useCallback(
+    (p: Partida) =>
+      intentar(async () => {
+        await repo.actualizarPartida(p)
+        setPartidas((prev) => prev.map((x) => (x.id === p.id ? p : x)))
+        return p
+      }),
+    [repo, intentar],
+  )
+
+  const borrarPartida = useCallback(
+    (id: string) =>
+      intentar(async () => {
+        await repo.borrarPartida(id)
+        setPartidas((prev) => prev.filter((x) => x.id !== id))
+        setMovimientos((prev) => prev.map((m) => (m.tipo === 'gasto' && m.partida === id ? { ...m, partida: null } : m)))
+        return id
+      }),
+    [repo, intentar],
+  )
+
+  const marcarRecibo = useCallback(
+    (mes: string, id: string, llegado: boolean) =>
+      intentar(async () => {
+        await repo.marcarRecibo(mes, id, llegado)
+        setRecibos((prev) => marcarReciboPuro(prev, mes, id, llegado))
+        return id
+      }),
+    [repo, intentar],
+  )
+
+  return {
+    movimientos, notas, patrimonio, partidas, recibos, cargando, error,
+    crear, actualizar, borrar, crearNota, actualizarNota, borrarNota, guardarPatrimonio,
+    crearPartida, actualizarPartida, borrarPartida, marcarRecibo,
+  }
 }

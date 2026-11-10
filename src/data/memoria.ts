@@ -1,4 +1,5 @@
-import type { Movimiento, Nota, Patrimonio } from '../domain/tipos'
+import type { Movimiento, Nota, Partida, Patrimonio, Recibos } from '../domain/tipos'
+import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
 import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
 
 /** Todos los datos de una persona. Es lo que se guarda en el navegador (demo) o cifrado en Supabase. */
@@ -6,13 +7,21 @@ export interface Estado {
   movimientos: Movimiento[]
   notas: Nota[]
   patrimonio: Patrimonio
+  partidas: Partida[]
+  recibos: Recibos
 }
 
-export const ESTADO_VACIO: Estado = { movimientos: [], notas: [], patrimonio: PATRIMONIO_VACIO }
+export const ESTADO_VACIO: Estado = { movimientos: [], notas: [], patrimonio: PATRIMONIO_VACIO, partidas: [], recibos: {} }
 
-/** Completa lo que falte en datos guardados por versiones anteriores (sin notas, por ejemplo). */
+/** Completa lo que falte en datos guardados por versiones anteriores (sin notas, partidas o recibos, por ejemplo). */
 export function normalizarEstado(e: Partial<Estado>): Estado {
-  return { movimientos: e.movimientos ?? [], notas: e.notas ?? [], patrimonio: e.patrimonio ?? PATRIMONIO_VACIO }
+  return {
+    movimientos: e.movimientos ?? [],
+    notas: e.notas ?? [],
+    patrimonio: e.patrimonio ?? PATRIMONIO_VACIO,
+    partidas: e.partidas ?? [],
+    recibos: e.recibos ?? {},
+  }
 }
 
 /**
@@ -61,6 +70,33 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
     },
     borrarNota(id) {
       return cambiar((e) => [{ ...e, notas: e.notas.filter((x) => x.id !== id) }, undefined])
+    },
+    async listarPartidas() {
+      return estado.partidas
+    },
+    crearPartida(p) {
+      const nueva: Partida = { ...p, id: crypto.randomUUID() }
+      return cambiar((e) => [{ ...e, partidas: [...e.partidas, nueva] }, nueva])
+    },
+    actualizarPartida(p) {
+      return cambiar((e) => [{ ...e, partidas: e.partidas.map((x) => (x.id === p.id ? p : x)) }, undefined])
+    },
+    borrarPartida(id) {
+      // Los gastos que la usaban se quedan sin partida, no desaparecen
+      return cambiar((e) => [
+        {
+          ...e,
+          partidas: e.partidas.filter((x) => x.id !== id),
+          movimientos: e.movimientos.map((m) => (m.tipo === 'gasto' && m.partida === id ? { ...m, partida: null } : m)),
+        },
+        undefined,
+      ])
+    },
+    async listarRecibos() {
+      return estado.recibos
+    },
+    marcarRecibo(mes, id, llegado) {
+      return cambiar((e) => [{ ...e, recibos: marcarReciboPuro(e.recibos, mes, id, llegado) }, undefined])
     },
     async leerPatrimonio() {
       return estado.patrimonio ?? PATRIMONIO_VACIO

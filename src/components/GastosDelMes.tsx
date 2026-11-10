@@ -1,4 +1,4 @@
-import type { GastoVariable } from '../domain/tipos'
+import type { GastoVariable, Partida } from '../domain/tipos'
 import { NOMBRE_CORTO } from '../domain/tipos'
 import { nombreDia, nombreMes } from '../domain/formato'
 import { BotonBorrar } from './BotonBorrar'
@@ -6,11 +6,14 @@ import { Importe } from './Importe'
 
 interface Props {
   gastos: GastoVariable[]
+  partidas: Partida[]
   mes: string
   onBorrar: (id: string) => void
 }
 
-export function GastosDelMes({ gastos, mes, onBorrar }: Props) {
+const nombrePartida = (g: GastoVariable, partidas: Partida[]) => partidas.find((p) => p.id === g.partida)?.nombre
+
+export function GastosDelMes({ gastos, partidas, mes, onBorrar }: Props) {
   const ordenados = [...gastos].sort((a, b) => b.fecha.localeCompare(a.fecha))
   const porDia = new Map<string, GastoVariable[]>()
   for (const g of ordenados) porDia.set(g.fecha, [...(porDia.get(g.fecha) ?? []), g])
@@ -32,7 +35,7 @@ export function GastosDelMes({ gastos, mes, onBorrar }: Props) {
                 <span className="punto" style={{ background: `var(--c-${g.categoria})` }} />
                 <div>
                   <div className="nombre">{g.nombre || NOMBRE_CORTO[g.categoria]}</div>
-                  <div className="donde">{NOMBRE_CORTO[g.categoria]}</div>
+                  <div className="donde">{NOMBRE_CORTO[g.categoria]}{nombrePartida(g, partidas) && ` · ${nombrePartida(g, partidas)}`}</div>
                 </div>
                 <div className="derecha">
                   <Importe valor={g.importe} />

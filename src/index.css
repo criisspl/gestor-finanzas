@@ -96,6 +96,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .note.aviso { background: var(--warn-soft); color: var(--warn); }
 .note.mal { background: var(--bad-soft); color: var(--bad); }
 .note .icono { color: inherit; flex: none; }
+.form label.casilla { display: flex; align-items: center; gap: 8px; }
+.form label.casilla input { width: auto; }
+.lista li.hecho .nombre { text-decoration: line-through; color: var(--muted); }
+.lista li > input[type="checkbox"] { width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--accent); }
+.lista li > label { display: grid; cursor: pointer; }
+.lista .medidor { margin-top: 6px; }
 .form textarea { font: 400 .95rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; resize: vertical; }
 .anadir { border: 1px dashed var(--line); background: transparent; color: var(--accent); font: 600 .85rem var(--body); padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
 .anadir:hover { border-color: var(--accent); }

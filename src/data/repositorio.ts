@@ -1,4 +1,4 @@
-import type { Movimiento, NuevaNota, NuevoMovimiento, Nota, Patrimonio } from '../domain/tipos'
+import type { Movimiento, NuevaNota, NuevaPartida, NuevoMovimiento, Nota, Partida, Patrimonio, Recibos } from '../domain/tipos'
 
 /**
  * Dónde se guardan los datos de la persona que ha iniciado sesión.
@@ -13,6 +13,13 @@ export interface Repositorio {
   crearNota(n: NuevaNota): Promise<Nota>
   actualizarNota(n: Nota): Promise<void>
   borrarNota(id: string): Promise<void>
+  listarPartidas(): Promise<Partida[]>
+  crearPartida(p: NuevaPartida): Promise<Partida>
+  actualizarPartida(p: Partida): Promise<void>
+  /** Los gastos apuntados en esa partida se conservan, sin partida. */
+  borrarPartida(id: string): Promise<void>
+  listarRecibos(): Promise<Recibos>
+  marcarRecibo(mes: string, id: string, llegado: boolean): Promise<void>
   leerPatrimonio(): Promise<Patrimonio>
   guardarPatrimonio(p: Omit<Patrimonio, 'actualizado'>): Promise<Patrimonio>
 }
