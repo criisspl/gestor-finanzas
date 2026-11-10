@@ -1,7 +1,7 @@
 import { AJUSTES_POR_DEFECTO, DATOS_MES_VACIO, type Ajustes, type Cobro, type Deuda, type GastoVariable, type Meses, type Movimiento, type Nota, type PagoDeuda, type Partida, type Patrimonio, type Recibos } from '../domain/tipos.ts'
 import { ajustarSaldo as ajustarSaldoPuro, copiarPartidas } from '../domain/cierre.ts'
 import { marcarRecibo as marcarReciboPuro } from '../domain/partidas.ts'
-import { PATRIMONIO_VACIO, type Repositorio } from './repositorio'
+import { PATRIMONIO_VACIO, type AjusteSaldo, type Repositorio } from './repositorio'
 
 /** Todos los datos de una persona. Es lo que se guarda en el navegador (demo) o cifrado en Supabase. */
 export interface Estado {
@@ -58,19 +58,24 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
     return hecho
   }
 
+  /** Aplica el ajuste de saldo (si lo hay) sobre los meses; sin saldo apuntado no inventa nada. */
+  function conAjuste(meses: Meses, ajuste: AjusteSaldo | null | undefined): Meses {
+    return ajuste ? ajustarSaldoPuro(meses, ajuste.mes, ajuste.cuenta, ajuste.delta) : meses
+  }
+
   return {
     async listarMovimientos() {
       return estado.movimientos
     },
-    crearMovimiento(m) {
+    crearMovimiento(m, ajuste) {
       const nuevo = { ...m, id: crypto.randomUUID() } as Movimiento
-      return cambiar((e) => [{ ...e, movimientos: [...e.movimientos, nuevo] }, nuevo])
+      return cambiar((e) => [{ ...e, movimientos: [...e.movimientos, nuevo], meses: conAjuste(e.meses, ajuste) }, nuevo])
     },
     actualizarMovimiento(m) {
       return cambiar((e) => [{ ...e, movimientos: e.movimientos.map((x) => (x.id === m.id ? m : x)) }, undefined])
     },
-    borrarMovimiento(id) {
-      return cambiar((e) => [{ ...e, movimientos: e.movimientos.filter((x) => x.id !== id) }, undefined])
+    borrarMovimiento(id, ajuste) {
+      return cambiar((e) => [{ ...e, movimientos: e.movimientos.filter((x) => x.id !== id), meses: conAjuste(e.meses, ajuste) }, undefined])
     },
     async listarNotas() {
       return estado.notas
@@ -109,8 +114,8 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
     async listarRecibos() {
       return estado.recibos
     },
-    marcarRecibo(mes, id, llegado) {
-      return cambiar((e) => [{ ...e, recibos: marcarReciboPuro(e.recibos, mes, id, llegado) }, undefined])
+    marcarRecibo(mes, id, llegado, ajuste) {
+      return cambiar((e) => [{ ...e, recibos: marcarReciboPuro(e.recibos, mes, id, llegado), meses: conAjuste(e.meses, ajuste) }, undefined])
     },
     async leerAjustes() {
       return estado.ajustes
@@ -185,8 +190,8 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
       const nuevo: Cobro = { ...c, id: crypto.randomUUID(), cobrado: false, fechaCobro: null }
       return cambiar((e) => [{ ...e, cobros: [...e.cobros, nuevo] }, nuevo])
     },
-    actualizarCobro(c) {
-      return cambiar((e) => [{ ...e, cobros: e.cobros.map((x) => (x.id === c.id ? c : x)) }, undefined])
+    actualizarCobro(c, ajuste) {
+      return cambiar((e) => [{ ...e, cobros: e.cobros.map((x) => (x.id === c.id ? c : x)), meses: conAjuste(e.meses, ajuste) }, undefined])
     },
     borrarCobro(id) {
       return cambiar((e) => [{ ...e, cobros: e.cobros.filter((x) => x.id !== id) }, undefined])
