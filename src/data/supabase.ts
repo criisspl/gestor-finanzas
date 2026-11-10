@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Movimiento } from '../domain/tipos'
 import type { AlmacenBoveda } from './boveda'
 import type { Sobre } from './cifrado'
+import { AJUSTES_POR_DEFECTO } from '../domain/tipos.ts'
 import { PATRIMONIO_VACIO } from './repositorio'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -55,6 +56,8 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
         notas: [],
         partidas: [],
         recibos: {},
+        ajustes: AJUSTES_POR_DEFECTO,
+        meses: {},
         patrimonio: pat.data
           ? {
               fondoEmergencia: Number(pat.data.fondo_emergencia),

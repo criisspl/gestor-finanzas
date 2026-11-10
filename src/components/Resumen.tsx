@@ -1,6 +1,6 @@
 import type { ResumenMes } from '../domain/reglas'
 import { NOMBRE_CORTO, type Categoria } from '../domain/tipos'
-import { moverMes, nombreMes } from '../domain/formato'
+import { nombreMes } from '../domain/formato'
 import { Importe } from './Importe'
 
 const PARTES: Categoria[] = ['alquiler', 'esencial', 'ocio', 'otros', 'inversion']
@@ -8,20 +8,15 @@ const PARTES: Categoria[] = ['alquiler', 'esencial', 'ocio', 'otros', 'inversion
 interface Props {
   resumen: ResumenMes
   mes: string
-  onCambiarMes: (mes: string) => void
 }
 
-export function Resumen({ resumen: r, mes, onCambiarMes }: Props) {
+export function Resumen({ resumen: r, mes }: Props) {
   const base = Math.max(r.ingreso, r.gastado + r.invertido) || 1
   return (
     <section aria-labelledby="t-resumen">
       <div className="head">
         <h2 id="t-resumen">Tu mes</h2>
-        <div className="mes">
-          <button type="button" aria-label="Mes anterior" onClick={() => onCambiarMes(moverMes(mes, -1))}>‹</button>
-          <span aria-live="polite">{nombreMes(mes)}</span>
-          <button type="button" aria-label="Mes siguiente" onClick={() => onCambiarMes(moverMes(mes, 1))}>›</button>
-        </div>
+        <span className="mes-nombre" aria-live="polite">{nombreMes(mes)}</span>
       </div>
 
       <dl className="stats">

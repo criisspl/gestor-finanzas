@@ -45,6 +45,8 @@ export interface GastoVariable {
   fecha: string
   /** Partida del reparto a la que cuenta. Opcional: los gastos anteriores no la tienen. */
   partida?: string | null
+  /** Cuenta de la que sale el dinero. Opcional: los gastos anteriores no la tienen. */
+  cuenta?: string | null
 }
 
 export type Movimiento = Ingreso | GastoFijo | GastoVariable
@@ -66,11 +68,44 @@ export interface Partida {
   importe: number
   variable: boolean
   orden: number
+  /** Cuenta a la que hay que transferir esta partida. Sin ella (o si ya no existe) va a la cuenta de nómina. */
+  cuenta?: string | null
 }
 export type NuevaPartida = Omit<Partida, 'id'>
 
 /** Recibos fijos que ya han llegado: ids de gastos fijos marcados, por mes (YYYY-MM). */
 export type Recibos = Record<string, string[]>
+
+/** Una cuenta de la persona, con el nombre que ella quiera. La primera de la lista es la de la nómina. */
+export interface Cuenta {
+  id: string
+  nombre: string
+}
+
+/** Día del mes en que empieza cada nómina (1 = meses naturales). */
+export const DIA_INICIO_POR_DEFECTO = 27
+
+export interface Ajustes {
+  /** Día en que empieza cada mes de nómina, de 1 a 28. */
+  diaInicio: number
+  cuentas: Cuenta[]
+}
+export const AJUSTES_POR_DEFECTO: Ajustes = { diaInicio: DIA_INICIO_POR_DEFECTO, cuentas: [] }
+
+/** Lo que se apunta al cobrar la nómina de un mes: nómina real, sobrante del mes anterior y saldos por cuenta. */
+export interface DatosMes {
+  /** Nómina recibida. Si es null, vale la suma de los ingresos mensuales. */
+  nomina: number | null
+  nominaRecibida: boolean
+  /** Sobrante del mes anterior apuntado a mano. Si es null, se calcula. */
+  arrastreReal: number | null
+  /** Saldo de cada cuenta (por id) apuntado en este mes. */
+  saldos: Record<string, number>
+}
+export const DATOS_MES_VACIO: DatosMes = { nomina: null, nominaRecibida: false, arrastreReal: null, saldos: {} }
+
+/** Datos de cada mes de nómina (YYYY-MM). */
+export type Meses = Record<string, DatosMes>
 
 export const TIPOS_NOTA = ['ok', 'aviso', 'mal'] as const
 export type TipoNota = (typeof TIPOS_NOTA)[number]

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { gastadoEn, nivelPartida, ordenarPartidas, repartoMes } from '../domain/partidas.ts'
 import { parsearImporte } from '../domain/formato.ts'
-import type { GastoVariable, NuevaPartida, Partida } from '../domain/tipos.ts'
+import type { Cuenta, GastoVariable, NuevaPartida, Partida } from '../domain/tipos.ts'
 import { BotonBorrar } from './BotonBorrar'
 import { Importe } from './Importe'
 
@@ -15,16 +15,18 @@ interface Props {
   partidas: Partida[]
   gastos: GastoVariable[]
   ingreso: number
+  diaInicio: number
+  cuentas: Cuenta[]
   onCrear: (p: NuevaPartida) => Promise<unknown>
   onActualizar: (p: Partida) => Promise<unknown>
   onBorrar: (id: string) => Promise<unknown>
 }
 
 /** Cómo se reparte la nómina del mes en partidas y cuánto llevas gastado en cada una. */
-export function Reparto({ mes, partidas, gastos, ingreso, onCrear, onActualizar, onBorrar }: Props) {
+export function Reparto({ mes, partidas, gastos, ingreso, diaInicio, cuentas, onCrear, onActualizar, onBorrar }: Props) {
   const [editando, setEditando] = useState<string | 'nueva' | null>(null)
   const ordenadas = ordenarPartidas(partidas)
-  const r = repartoMes(ordenadas, gastos, ingreso)
+  const r = repartoMes(ordenadas, gastos, ingreso, diaInicio)
   const base = Math.max(ingreso, r.asignado) || 1
 
   return (
@@ -53,13 +55,13 @@ export function Reparto({ mes, partidas, gastos, ingreso, onCrear, onActualizar,
           if (editando === p.id) {
             return (
               <li key={p.id}>
-                <FormularioPartida inicial={p} onCancelar={() => setEditando(null)}
+                <FormularioPartida inicial={p} cuentas={cuentas} onCancelar={() => setEditando(null)}
                   onGuardar={async (d) => { if (await onActualizar({ ...p, ...d })) setEditando(null) }}
                   onBorrar={async () => { if (await onBorrar(p.id)) setEditando(null) }} />
               </li>
             )
           }
-          const gastado = gastadoEn(p, gastos)
+          const gastado = gastadoEn(p, gastos, diaInicio)
           const nivel = nivelPartida(p.importe, gastado)
           const dif = Math.abs(p.importe - gastado)
           return (
@@ -71,6 +73,7 @@ export function Reparto({ mes, partidas, gastos, ingreso, onCrear, onActualizar,
                 <div className="donde">
                   Gastado <Importe valor={gastado} /> · {gastado > p.importe ? <>te pasas <Importe valor={dif} className="mal" /></> : <>quedan <Importe valor={dif} /></>}
                   {!p.variable && ' · fija'}
+                  {cuentas.find((c) => c.id === p.cuenta) && ` · ${cuentas.find((c) => c.id === p.cuenta)?.nombre}`}
                 </div>
               </div>
               <div className="derecha">
@@ -85,7 +88,7 @@ export function Reparto({ mes, partidas, gastos, ingreso, onCrear, onActualizar,
         })}
         {editando === 'nueva' && (
           <li>
-            <FormularioPartida onCancelar={() => setEditando(null)}
+            <FormularioPartida cuentas={cuentas} onCancelar={() => setEditando(null)}
               onGuardar={async (d) => {
                 const orden = Math.max(0, ...partidas.map((x) => x.orden)) + 1
                 if (await onCrear({ ...d, mes, orden })) setEditando(null)
@@ -117,10 +120,12 @@ interface Datos {
   detalle: string | null
   importe: number
   variable: boolean
+  cuenta: string | null
 }
 
-function FormularioPartida({ inicial, onGuardar, onCancelar, onBorrar }: {
+function FormularioPartida({ inicial, cuentas, onGuardar, onCancelar, onBorrar }: {
   inicial?: Partida
+  cuentas: Cuenta[]
   onGuardar: (d: Datos) => void
   onCancelar: () => void
   onBorrar?: () => void
@@ -129,6 +134,7 @@ function FormularioPartida({ inicial, onGuardar, onCancelar, onBorrar }: {
   const [detalle, setDetalle] = useState(inicial?.detalle ?? '')
   const [importe, setImporte] = useState(inicial ? String(inicial.importe).replace('.', ',') : '')
   const [variable, setVariable] = useState(inicial?.variable ?? true)
+  const [cuenta, setCuenta] = useState(inicial?.cuenta ?? '')
   const [aviso, setAviso] = useState<string | null>(null)
 
   function enviar(e: FormEvent) {
@@ -136,7 +142,7 @@ function FormularioPartida({ inicial, onGuardar, onCancelar, onBorrar }: {
     const n = parsearImporte(importe)
     if (n == null || n <= 0) return setAviso('El presupuesto tiene que ser un número mayor que 0, por ejemplo 250 o 12,50.')
     if (!nombre.trim()) return setAviso('Ponle un nombre.')
-    onGuardar({ nombre: nombre.trim(), detalle: detalle.trim() || null, importe: n, variable })
+    onGuardar({ nombre: nombre.trim(), detalle: detalle.trim() || null, importe: n, variable, cuenta: cuenta || null })
   }
 
   return (
@@ -152,6 +158,14 @@ function FormularioPartida({ inicial, onGuardar, onCancelar, onBorrar }: {
       <label>Detalle (opcional)
         <input id="pt-detalle" value={detalle} onChange={(e) => setDetalle(e.target.value)} placeholder="Qué entra en esta partida" />
       </label>
+      {!!cuentas.length && (
+        <label>Cuenta a la que se transfiere
+          <select id="pt-cuenta" value={cuenta} onChange={(e) => setCuenta(e.target.value)}>
+            <option value="">{cuentas[0].nombre} (nómina)</option>
+            {cuentas.slice(1).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        </label>
+      )}
       <label className="casilla">
         <input id="pt-variable" type="checkbox" checked={variable} onChange={(e) => setVariable(e.target.checked)} />
         Variable: cuenta solo lo que apuntes (si no, cuenta el presupuesto entero)
