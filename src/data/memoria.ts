@@ -43,7 +43,12 @@ export function normalizarEstado(e: Partial<Estado>): Estado {
  * en cada cambio. El estado solo cambia si `persistir` termina bien, y los cambios van en cola
  * para que dos guardados seguidos no se pisen.
  */
-export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => Promise<void>): Repositorio {
+export function repositorioEnMemoria(
+  inicial: Estado,
+  persistir: (e: Estado) => Promise<void>,
+  /** Cambio de contraseña, si el almacenamiento está cifrado. Recibe el estado actual y va en la misma cola que los guardados. */
+  cambiarContrasena?: (e: Estado, actual: string, nueva: string) => Promise<void>,
+): Repositorio {
   let estado = normalizarEstado(inicial)
   let cola: Promise<unknown> = Promise.resolve()
 
@@ -64,6 +69,13 @@ export function repositorioEnMemoria(inicial: Estado, persistir: (e: Estado) => 
   }
 
   return {
+    ...(cambiarContrasena && {
+      cambiarContrasena(actual: string, nueva: string) {
+        const hecho = cola.then(() => cambiarContrasena(estado, actual, nueva))
+        cola = hecho.catch(() => undefined)
+        return hecho
+      },
+    }),
     async listarMovimientos() {
       return estado.movimientos
     },

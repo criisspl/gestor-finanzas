@@ -19,8 +19,37 @@ export interface AlmacenBoveda {
   borrarSinCifrar(): Promise<void>
 }
 
-function repositorioCifrado(almacen: AlmacenBoveda, llave: Llave, estado: Estado): Repositorio {
-  return repositorioEnMemoria(estado, async (e) => almacen.escribir(await cifrar(llave, e)))
+/** Longitud mínima de la contraseña de la bóveda. */
+export const CONTRASENA_MINIMA = 8
+
+/**
+ * `sobre` es el último que se sabe guardado en el almacén: con él se comprueba la contraseña actual al cambiarla.
+ * La llave nueva solo sustituye a la vieja cuando el almacén ha aceptado el sobre nuevo.
+ */
+function repositorioCifrado(almacen: AlmacenBoveda, llaveInicial: Llave, estado: Estado, sobreInicial: Sobre): Repositorio {
+  let llave = llaveInicial
+  let sobre = sobreInicial
+
+  async function cambiarContrasena(e: Estado, actual: string, nueva: string) {
+    // Descifra con la actual: lanza ContrasenaIncorrecta si no vale
+    await descifrar(await abrirLlave(actual, sobre), sobre)
+    const llaveNueva = await crearLlave(nueva, Math.max(llave.iteraciones, ITERACIONES))
+    const sobreNuevo = await cifrar(llaveNueva, e)
+    // Si falla o hay conflicto, lanza y no cambia nada: la contraseña vieja sigue valiendo
+    await almacen.escribir(sobreNuevo)
+    llave = llaveNueva
+    sobre = sobreNuevo
+  }
+
+  return repositorioEnMemoria(
+    estado,
+    async (e) => {
+      const nuevo = await cifrar(llave, e)
+      await almacen.escribir(nuevo)
+      sobre = nuevo
+    },
+    cambiarContrasena,
+  )
 }
 
 /** Los datos en claro se borran después de tener la copia cifrada. Si falla, se reintenta al abrir. */
@@ -36,9 +65,10 @@ async function limpiarSinCifrar(almacen: AlmacenBoveda) {
 export async function crearBoveda(almacen: AlmacenBoveda, contrasena: string, iteraciones = ITERACIONES): Promise<Repositorio> {
   const llave = await crearLlave(contrasena, iteraciones)
   const estado = (await almacen.leerSinCifrar()) ?? ESTADO_VACIO
-  await almacen.escribir(await cifrar(llave, estado))
+  const sobre = await cifrar(llave, estado)
+  await almacen.escribir(sobre)
   await limpiarSinCifrar(almacen)
-  return repositorioCifrado(almacen, llave, estado)
+  return repositorioCifrado(almacen, llave, estado, sobre)
 }
 
 /** Lanza ContrasenaIncorrecta si la contraseña no abre el sobre. */
@@ -47,5 +77,5 @@ export async function abrirBoveda(almacen: AlmacenBoveda, sobre: Sobre, contrase
   // Los sobres anteriores a la versión 5 no tienen notas, partidas, recibos, ajustes, meses, deudas ni cobros: se completan al abrir
   const estado = normalizarEstado(await descifrar<Partial<Estado>>(llave, sobre))
   await limpiarSinCifrar(almacen)
-  return repositorioCifrado(almacen, llave, estado)
+  return repositorioCifrado(almacen, llave, estado, sobre)
 }

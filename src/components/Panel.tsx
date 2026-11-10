@@ -22,6 +22,7 @@ import { CierreMes } from './CierreMes'
 import { Traspasos } from './Traspasos'
 import { ResumenCuentas } from './ResumenCuentas'
 import { Ajustes } from './Ajustes'
+import { CambiarContrasena } from './CambiarContrasena'
 import { Cobros } from './Cobros'
 import { Deudas } from './Deudas'
 
@@ -136,6 +137,7 @@ export function Panel({ repo }: { repo: Repositorio }) {
         onCrear={f.crear} onActualizar={f.actualizar} onBorrar={f.borrar} />
       <PatrimonioAcumulado patrimonio={f.patrimonio} onGuardar={f.guardarPatrimonio} />
       <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} />
+      {repo.cambiarContrasena && <CambiarContrasena onCambiar={repo.cambiarContrasena} />}
     </>
   )
 }
