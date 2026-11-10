@@ -47,7 +47,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .mes { display: flex; align-items: center; gap: 4px; background: var(--line); padding: 4px; border-radius: 10px; }
 .mes span { font-weight: 600; font-size: .95rem; padding: 0 10px; min-width: 9ch; text-align: center; }
-.mes button { border: 0; background: var(--surface); color: var(--fg); font: 600 1rem var(--body); width: 34px; height: 32px; border-radius: 7px; cursor: pointer; }
+.mes button { border: 0; background: var(--surface); color: var(--fg); font: 600 1rem var(--body); width: 44px; height: 44px; border-radius: 7px; cursor: pointer; }
 
 .stats { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .stats div { background: var(--surface); padding: 12px 14px; min-width: 0; }
@@ -91,7 +91,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .vacio { color: var(--muted); font-size: .92rem; padding: 14px 0; margin: 0; }
 .vacio.con-borde { border-top: 1px solid var(--line); }
 
-.icono { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; font: 500 .8rem var(--body); }
+.icono { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 10px; min-height: 44px; border-radius: 6px; font: 500 .8rem var(--body); }
 .icono:hover { background: var(--line); color: var(--fg); }
 .icono.seguro { background: var(--bad-soft); color: var(--bad); }
 .notas { display: grid; gap: 8px; }
@@ -106,13 +106,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .lista li > input[type="checkbox"] { width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--accent); }
 .lista li > label { display: grid; cursor: pointer; }
 .lista .medidor { margin-top: 0; grid-column: 1 / -1; }
-.form textarea { font: 400 .95rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; resize: vertical; }
+.form textarea { font: 400 1rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; resize: vertical; }
 .anadir { border: 1px dashed var(--line); background: transparent; color: var(--accent); font: 600 .85rem var(--body); padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
 .anadir:hover { border-color: var(--accent); }
 
 .form { display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .form label, .campo { display: grid; gap: 3px; font-size: .78rem; color: var(--muted); font-weight: 500; }
-.form input, .form select, .campo input { font: 400 .95rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; }
+.form input, .form select, .campo input { font: 400 1rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; }
 .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 420px) { .fila2 { grid-template-columns: 1fr; } }
 .acciones { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
@@ -132,8 +132,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Pestañas de mes de nómina: la fila se desplaza por dentro, la página no */
 .pestanas-caja { display: grid; gap: 8px; min-width: 0; }
 .pestanas { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-.pestanas button { flex: none; border: 0; border-radius: 99px; padding: 6px 14px; background: var(--line); color: var(--fg); font: 600 .85rem var(--body); cursor: pointer; }
-.pestanas button[aria-selected="true"] { background: var(--accent); color: var(--surface); }
+.pestanas button { flex: none; border: 0; border-radius: 99px; padding: 6px 14px; min-height: 44px; background: var(--line); color: var(--fg); font: 600 .85rem var(--body); cursor: pointer; }
+.pestanas button[aria-current="true"] { background: var(--accent); color: var(--surface); }
 .pestanas-caja .anadir { justify-self: start; margin-top: 0; }
 .mes-nombre { font-weight: 600; }
 .resumen-nota { margin: 10px 0 0; }
+
+/* Solo para lectores de pantalla */
+.solo-lector { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

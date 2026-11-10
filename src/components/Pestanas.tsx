@@ -9,15 +9,15 @@ interface Props {
   onAdelantar: () => Promise<unknown>
 }
 
-/** Una pestaña por mes de nómina y el botón para adelantar el siguiente. */
+/** Un botón por mes de nómina (navegación, no pestañas: debajo no hay paneles distintos) y el botón para adelantar el siguiente. */
 export function Pestanas({ meses, activo, siguiente, onElegir, onAdelantar }: Props) {
   return (
     <div className="pestanas-caja">
-      <div className="pestanas" role="tablist" aria-label="Meses de nómina">
+      <nav className="pestanas" aria-label="Meses de nómina">
         {meses.map((m) => (
-          <button key={m} type="button" role="tab" aria-selected={m === activo} onClick={() => onElegir(m)}>{nombreMes(m)}</button>
+          <button key={m} type="button" aria-current={m === activo ? 'true' : undefined} onClick={() => onElegir(m)}>{nombreMes(m)}</button>
         ))}
-      </div>
+      </nav>
       <button type="button" className="anadir" onClick={onAdelantar}>+ Adelantar {nombreMes(siguiente).toLowerCase()}</button>
     </div>
   )

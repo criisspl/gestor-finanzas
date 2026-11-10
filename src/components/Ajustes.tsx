@@ -38,7 +38,7 @@ export function Ajustes({ ajustes, onGuardar }: { ajustes: DatosAjustes; onGuard
         {ajustes.cuentas.map((c, i) => (
           <li key={c.id}>
             <div className="nombre">{c.nombre}{i === 0 && ' (nómina)'}</div>
-            <BotonBorrar onBorrar={() => onGuardar({ ...ajustes, cuentas: ajustes.cuentas.filter((x) => x.id !== c.id) })} />
+            <BotonBorrar nombre={`la cuenta ${c.nombre}`} onBorrar={() => onGuardar({ ...ajustes, cuentas: ajustes.cuentas.filter((x) => x.id !== c.id) })} />
           </li>
         ))}
         {!ajustes.cuentas.length && <li><div className="vacio">Aún no tienes cuentas.</div></li>}

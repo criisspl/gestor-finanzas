@@ -65,7 +65,7 @@ export function Deudas(p: Props) {
                 )}
                 {historial.map((x) => (
                   <div key={x.id} className="donde">
-                    {fechaCorta(x.fecha)} · {euros(x.importe)} <BotonBorrar onBorrar={() => p.onBorrarPago(x)} />
+                    {fechaCorta(x.fecha)} · {euros(x.importe)} <BotonBorrar nombre={`el pago de ${euros(x.importe)}`} onBorrar={() => p.onBorrarPago(x)} />
                   </div>
                 ))}
               </div>
@@ -162,7 +162,7 @@ function FormularioDeuda({ inicial, onGuardar, onCancelar, onBorrar }: {
           <button className="btn primario" type="submit">Guardar</button>
           <button className="btn suave" type="button" onClick={onCancelar}>Cancelar</button>
         </div>
-        {onBorrar && <BotonBorrar className="btn peligro" onBorrar={onBorrar} />}
+        {onBorrar && <BotonBorrar className="btn peligro" nombre={inicial?.nombre} onBorrar={onBorrar} />}
       </div>
     </form>
   )
