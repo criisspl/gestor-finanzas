@@ -72,13 +72,13 @@ export function Reparto({ mes, partidas, gastos, ingreso, onCrear, onActualizar,
                   Gastado <Importe valor={gastado} /> · {gastado > p.importe ? <>te pasas <Importe valor={dif} className="mal" /></> : <>quedan <Importe valor={dif} /></>}
                   {!p.variable && ' · fija'}
                 </div>
-                <div className="medidor" role="img" aria-label={`${p.nombre}: gastado ${Math.round(p.importe > 0 ? (gastado / p.importe) * 100 : 0)} % del presupuesto`}>
-                  <span className={nivel === 'ok' ? '' : nivel} style={{ width: `${Math.min(100, p.importe > 0 ? (gastado / p.importe) * 100 : gastado > 0 ? 100 : 0)}%` }} />
-                </div>
               </div>
               <div className="derecha">
                 <Importe valor={p.importe} />
                 <button type="button" className="icono" onClick={() => setEditando(p.id)}>Editar</button>
+              </div>
+              <div className="medidor" role="img" aria-label={`${p.nombre}: gastado ${Math.round(p.importe > 0 ? (gastado / p.importe) * 100 : 0)} % del presupuesto`}>
+                <span className={nivel === 'ok' ? '' : nivel} style={{ width: `${Math.min(100, p.importe > 0 ? (gastado / p.importe) * 100 : gastado > 0 ? 100 : 0)}%` }} />
               </div>
             </li>
           )
