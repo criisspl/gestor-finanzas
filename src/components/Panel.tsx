@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Repositorio } from '../data/repositorio'
 import { useFinanzas } from '../hooks/useFinanzas'
 import { calcularReglas, resumirMes } from '../domain/reglas'
@@ -51,11 +51,8 @@ export function Panel({ repo }: { repo: Repositorio }) {
   const datos = datosMes(f.meses, mes)
   const ingresoMes = ingresoDe(mes, ciclo)
 
-  const resumen = useMemo(
-    () => resumirMes(f.movimientos, mes, { diaInicio: dia, ingreso: ingresoMes }),
-    [f.movimientos, mes, dia, ingresoMes],
-  )
-  const reglas = useMemo(() => calcularReglas(resumen, f.patrimonio), [resumen, f.patrimonio])
+  const resumen = resumirMes(f.movimientos, mes, { diaInicio: dia, ingreso: ingresoMes })
+  const reglas = calcularReglas(resumen, f.patrimonio)
   const partidasMes = f.partidas.filter((p) => p.mes === mes)
 
   const existentes = listaMeses(f.partidas, f.meses)
