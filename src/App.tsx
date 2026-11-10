@@ -6,6 +6,7 @@ import type { Repositorio } from './data/repositorio'
 import { Acceso } from './components/Acceso'
 import { Desbloqueo } from './components/Desbloqueo'
 import { Panel } from './components/Panel'
+import { useBloqueoInactividad } from './hooks/useBloqueoInactividad.ts'
 
 export default function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
@@ -27,6 +28,10 @@ export default function App() {
   // El repositorio descifrado solo vale para la persona que lo abrió: al salir o cambiar de cuenta se descarta
   const [abierto, setAbierto] = useState<{ userId: string; repo: Repositorio } | null>(null)
   const repo = demo ?? (abierto && abierto.userId === userId ? abierto.repo : null)
+
+  // Al bloquear se descarta el repositorio (y con él la clave en memoria): vuelve el Desbloqueo. En demo no hay clave
+  const bloquear = () => setAbierto(null)
+  useBloqueoInactividad(!demo && !!repo, bloquear)
 
   let contenido
   if (comprobando) contenido = <p className="estado">Cargando…</p>
