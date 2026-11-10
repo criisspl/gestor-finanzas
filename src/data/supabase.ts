@@ -37,6 +37,7 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
   let ultima: string | null | undefined
 
   return {
+    usuario: userId,
     async leer() {
       const { data, error } = await db.from('bovedas').select('version,sal,iteraciones,iv,cifrado,updated_at').maybeSingle()
       if (error) throw error

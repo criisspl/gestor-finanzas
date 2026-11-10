@@ -17,6 +17,8 @@ export interface AlmacenBoveda {
   /** Datos guardados en claro por versiones anteriores de la app, si quedan. */
   leerSinCifrar(): Promise<Estado | null>
   borrarSinCifrar(): Promise<void>
+  /** Id de la persona dueña de la bóveda, si el almacén lo conoce. Se autentica junto al sobre (AAD). */
+  readonly usuario?: string
 }
 
 /** Longitud mínima de la contraseña de la bóveda. */
@@ -32,9 +34,9 @@ function repositorioCifrado(almacen: AlmacenBoveda, llaveInicial: Llave, estado:
 
   async function cambiarContrasena(e: Estado, actual: string, nueva: string) {
     // Descifra con la actual: lanza ContrasenaIncorrecta si no vale
-    await descifrar(await abrirLlave(actual, sobre), sobre)
+    await descifrar(await abrirLlave(actual, sobre), sobre, almacen.usuario)
     const llaveNueva = await crearLlave(nueva, Math.max(llave.iteraciones, ITERACIONES))
-    const sobreNuevo = await cifrar(llaveNueva, e)
+    const sobreNuevo = await cifrar(llaveNueva, e, almacen.usuario)
     // Si falla o hay conflicto, lanza y no cambia nada: la contraseña vieja sigue valiendo
     await almacen.escribir(sobreNuevo)
     llave = llaveNueva
@@ -44,7 +46,7 @@ function repositorioCifrado(almacen: AlmacenBoveda, llaveInicial: Llave, estado:
   return repositorioEnMemoria(
     estado,
     async (e) => {
-      const nuevo = await cifrar(llave, e)
+      const nuevo = await cifrar(llave, e, almacen.usuario)
       await almacen.escribir(nuevo)
       sobre = nuevo
     },
@@ -65,7 +67,7 @@ async function limpiarSinCifrar(almacen: AlmacenBoveda) {
 export async function crearBoveda(almacen: AlmacenBoveda, contrasena: string, iteraciones = ITERACIONES): Promise<Repositorio> {
   const llave = await crearLlave(contrasena, iteraciones)
   const estado = (await almacen.leerSinCifrar()) ?? ESTADO_VACIO
-  const sobre = await cifrar(llave, estado)
+  const sobre = await cifrar(llave, estado, almacen.usuario)
   await almacen.escribir(sobre)
   await limpiarSinCifrar(almacen)
   return repositorioCifrado(almacen, llave, estado, sobre)
@@ -75,7 +77,7 @@ export async function crearBoveda(almacen: AlmacenBoveda, contrasena: string, it
 export async function abrirBoveda(almacen: AlmacenBoveda, sobre: Sobre, contrasena: string): Promise<Repositorio> {
   const llave = await abrirLlave(contrasena, sobre)
   // Los sobres anteriores a la versión 5 no tienen notas, partidas, recibos, ajustes, meses, deudas ni cobros: se completan al abrir
-  const estado = normalizarEstado(await descifrar<Partial<Estado>>(llave, sobre))
+  const estado = normalizarEstado(await descifrar<Partial<Estado>>(llave, sobre, almacen.usuario))
   await limpiarSinCifrar(almacen)
   return repositorioCifrado(almacen, llave, estado, sobre)
 }

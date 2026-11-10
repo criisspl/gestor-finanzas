@@ -6,8 +6,8 @@
 
 /** Lo que se guarda en el servidor. Sin la contraseña no se puede leer. */
 export interface Sobre {
-  /** 1: movimientos y patrimonio. 2: añade notas. 3: añade partidas y recibos. 4: añade ajustes (cuentas, ciclo) y datos de cada mes. 5: añade deudas, pagos y cobros pendientes. Se sabe abrir todas. */
-  version: 1 | 2 | 3 | 4 | 5
+  /** 1: movimientos y patrimonio. 2: añade notas. 3: añade partidas y recibos. 4: añade ajustes (cuentas, ciclo) y datos de cada mes. 5: añade deudas, pagos y cobros pendientes. 6: mismos datos, pero AES-GCM autentica la versión del sobre (y el usuario, si se conoce) como datos adicionales (AAD). Se sabe abrir todas. */
+  version: 1 | 2 | 3 | 4 | 5 | 6
   /** Sal de PBKDF2 en base64. Es única por persona y no es secreta. */
   sal: string
   iteraciones: number
@@ -25,7 +25,12 @@ export interface Llave {
 }
 
 /** Versión con la que se escriben los sobres nuevos. */
-export const VERSION_SOBRE = 5
+export const VERSION_SOBRE = 6
+
+/** Primera versión que autentica datos adicionales (AAD) con AES-GCM. */
+const VERSION_CON_AAD = 6
+
+const VERSIONES = [1, 2, 3, 4, 5, 6]
 
 /** Recomendación de OWASP para PBKDF2-HMAC-SHA256. */
 export const ITERACIONES = 600_000
@@ -69,19 +74,30 @@ export async function abrirLlave(contrasena: string, sobre: Pick<Sobre, 'sal' | 
   return { clave, sal: sobre.sal, iteraciones: sobre.iteraciones }
 }
 
-export async function cifrar(llave: Llave, valor: unknown): Promise<Sobre> {
+/**
+ * Datos adicionales autenticados: ligan el cifrado a la versión del sobre y, si se conoce, a la persona.
+ * Cambiar cualquiera de los dos (por ejemplo, la versión del sobre guardado) hace que el descifrado falle.
+ * Los sobres anteriores a la versión 6 se cifraron sin ellos.
+ */
+function datosAdicionales(version: Sobre['version'], usuario?: string): Uint8Array<ArrayBuffer> | undefined {
+  if (version < VERSION_CON_AAD) return undefined
+  return new TextEncoder().encode(`gestor-finanzas|v${version}${usuario ? `|${usuario}` : ''}`)
+}
+
+/** `usuario` es el id de quien guarda, si el almacén lo conoce (en memoria o demo no hay). Hay que pasar el mismo al descifrar. */
+export async function cifrar(llave: Llave, valor: unknown, usuario?: string): Promise<Sobre> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const datos = new TextEncoder().encode(JSON.stringify(valor))
-  const cifrado = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, llave.clave, datos))
+  const cifrado = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: datosAdicionales(VERSION_SOBRE, usuario) }, llave.clave, datos))
   return { version: VERSION_SOBRE, sal: llave.sal, iteraciones: llave.iteraciones, iv: aBase64(iv), cifrado: aBase64(cifrado) }
 }
 
 /** Lanza ContrasenaIncorrecta si la llave no es la del sobre (o si alguien lo ha manipulado). */
-export async function descifrar<T>(llave: Llave, sobre: Sobre): Promise<T> {
-  if (sobre.version !== 1 && sobre.version !== 2 && sobre.version !== 3 && sobre.version !== 4 && sobre.version !== 5) throw new Error(`Versión de sobre no soportada: ${String(sobre.version)}`)
+export async function descifrar<T>(llave: Llave, sobre: Sobre, usuario?: string): Promise<T> {
+  if (!VERSIONES.includes(sobre.version)) throw new Error(`Versión de sobre no soportada: ${String(sobre.version)}`)
   let datos: ArrayBuffer
   try {
-    datos = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deBase64(sobre.iv) }, llave.clave, deBase64(sobre.cifrado))
+    datos = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deBase64(sobre.iv), additionalData: datosAdicionales(sobre.version, usuario) }, llave.clave, deBase64(sobre.cifrado))
   } catch {
     throw new ContrasenaIncorrecta()
   }

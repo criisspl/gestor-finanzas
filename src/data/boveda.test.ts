@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { abrirBoveda, ConflictoBoveda, crearBoveda, type AlmacenBoveda } from './boveda'
-import { abrirLlave, cifrar, ContrasenaIncorrecta, crearLlave, type Sobre } from './cifrado'
+import { abrirLlave, ContrasenaIncorrecta, crearLlave, type Sobre } from './cifrado'
+import { cifrarAntiguo } from './sobreAntiguo'
 import { AJUSTES_POR_DEFECTO } from '../domain/tipos'
 import { ESTADO_VACIO, type Estado } from './memoria'
 
@@ -29,6 +30,9 @@ function almacenFalso(sinCifrar: Estado | null = null) {
   }
   return a satisfies AlmacenBoveda
 }
+
+/** Sobre real de la versión 5 (formato actual antes de AAD), contraseña «contraseña-fixture». No regenerar: es el fixture de compatibilidad. */
+const SOBRE_V5: Sobre = JSON.parse('{"version":5,"sal":"llMcu/zoCPiqRVi4cdDm7g==","iteraciones":1000,"iv":"s0d1BNCp24NqtXou","cifrado":"SdrKX9yRBoHGyfZRnQjG9yPrhV3PgHPAE1x4Dx0U/cabKtVMZpwTzK2SffRfb6Qca0WtOxxJ/9/b3/M35gqr18QfSBWQj1ZPdkUMpqKIb3cIv/Nbqgjce+MoHoG+oUQze3d4C4aoqwoHLbvPxXnu1kTpdaDHLa/3bySKAwDP+QhXxtRA7N3t6Ds1QFK/FlXoLazbV2JLRm8+JpH50FRC/in58nBwQmrsSgIcZgxAm1DvEv6mKM9OhSeNgOLf1qhQrOWRPGTowyvkcCop+Qx/+F1PGCdh4l8HmDVKY1iXWSk9ftPj9kHL2ClS9qFIGdjpX7gb5PQCMDqpK9QVme5bvoVNEgZtQYs7hyF2mPC6FhZARh+CwYC2+M85YiLKXM9ROZAt7l5Drvw="}') as Sobre
 
 const antiguo: Estado = {
   movimientos: [{ id: 'm1', tipo: 'ingreso', nombre: 'Nómina', importe: 1250 }],
@@ -88,7 +92,7 @@ describe('bóveda', () => {
     const partida = await repo.crearPartida({ mes: '2026-11', nombre: 'Comida secreta', detalle: null, importe: 250, variable: true, orden: 1 })
     const gasto = await repo.crearMovimiento({ tipo: 'gasto', nombre: 'Súper', importe: 40, categoria: 'esencial', fecha: '2026-11-02', partida: partida.id })
     await repo.marcarRecibo('2026-11', 'f1', true)
-    expect(almacen.sobre?.version).toBe(5)
+    expect(almacen.sobre?.version).toBe(6)
     expect(almacen.sobre?.cifrado).not.toContain('secreta')
 
     const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
@@ -106,33 +110,33 @@ describe('bóveda', () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
     const nota = { id: 'n1', tipo: 'ok', titulo: null, texto: 'x' }
-    const v2: Sobre = { ...(await cifrar(llave, { movimientos: antiguo.movimientos, notas: [nota], patrimonio: antiguo.patrimonio })), version: 2 }
+    const v2: Sobre = await cifrarAntiguo(llave, { movimientos: antiguo.movimientos, notas: [nota], patrimonio: antiguo.patrimonio }, 2)
     const repo = await abrirBoveda(almacen, v2, 'contraseña')
     expect(await repo.listarNotas()).toEqual([nota])
     expect(await repo.listarPartidas()).toEqual([])
     expect(await repo.listarRecibos()).toEqual({})
     await repo.marcarRecibo('2026-11', 'f1', true)
-    expect(almacen.sobre?.version).toBe(5)
+    expect(almacen.sobre?.version).toBe(6)
   })
 
   it('abre un sobre de la versión 1 (sin notas) y lo guarda ya como versión 5', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
     const estadoV1 = { movimientos: antiguo.movimientos, patrimonio: antiguo.patrimonio }
-    const v1: Sobre = { ...(await cifrar(llave, estadoV1)), version: 1 }
+    const v1: Sobre = await cifrarAntiguo(llave, estadoV1, 1)
     const repo = await abrirBoveda(almacen, v1, 'contraseña')
     expect(await repo.listarMovimientos()).toEqual(antiguo.movimientos)
     expect(await repo.listarNotas()).toEqual([])
     expect(await repo.listarPartidas()).toEqual([])
     await repo.crearNota({ tipo: 'ok', titulo: 'Hola', texto: 'x' })
-    expect(almacen.sobre?.version).toBe(5)
+    expect(almacen.sobre?.version).toBe(6)
     expect((await abrirLlave('contraseña', almacen.sobre!)).sal).toBe(v1.sal)
   })
 
   it('abre un sobre de la versión 3 (sin ajustes ni meses) con los valores por defecto', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
-    const v3: Sobre = { ...(await cifrar(llave, { movimientos: antiguo.movimientos, partidas: [], recibos: {} })), version: 3 }
+    const v3: Sobre = await cifrarAntiguo(llave, { movimientos: antiguo.movimientos, partidas: [], recibos: {} }, 3)
     const repo = await abrirBoveda(almacen, v3, 'contraseña')
     expect(await repo.leerAjustes()).toEqual(AJUSTES_POR_DEFECTO)
     expect(await repo.listarMeses()).toEqual({})
@@ -154,13 +158,13 @@ describe('bóveda', () => {
   it('abre un sobre de la versión 4 (sin deudas ni cobros) y los completa vacíos', async () => {
     const almacen = almacenFalso()
     const llave = await crearLlave('contraseña', IT)
-    const v4: Sobre = { ...(await cifrar(llave, { movimientos: antiguo.movimientos, partidas: [], recibos: {}, meses: {} })), version: 4 }
+    const v4: Sobre = await cifrarAntiguo(llave, { movimientos: antiguo.movimientos, partidas: [], recibos: {}, meses: {} }, 4)
     const repo = await abrirBoveda(almacen, v4, 'contraseña')
     expect(await repo.listarDeudas()).toEqual([])
     expect(await repo.listarPagos()).toEqual([])
     expect(await repo.listarCobros()).toEqual([])
     await repo.crearCobro({ mes: '2026-11', nombre: 'x', detalle: null, importe: 5 })
-    expect(almacen.sobre?.version).toBe(5)
+    expect(almacen.sobre?.version).toBe(6)
   })
 
   it('deudas, pagos y cobros se guardan cifrados y se recuperan', async () => {
@@ -278,6 +282,39 @@ describe('bóveda', () => {
       await expect(repo.cambiarContrasena!('contraseña', 'otra-contraseña')).rejects.toBeInstanceOf(ConflictoBoveda)
       expect(almacen.sobre).toBe(antes)
       await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+    })
+  })
+
+  describe('AAD (versión 6)', () => {
+    it('abre el sobre fixture de la versión 5 y al guardar lo reescribe en la versión 6', async () => {
+      const almacen = almacenFalso()
+      almacen.sobre = SOBRE_V5
+      const repo = await abrirBoveda(almacen, SOBRE_V5, 'contraseña-fixture')
+      expect(await repo.listarMovimientos()).toEqual(antiguo.movimientos)
+      await repo.crearMovimiento({ tipo: 'ingreso', nombre: 'Extra', importe: 5 })
+      expect(almacen.sobre?.version).toBe(6)
+      const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña-fixture')
+      expect((await otra.listarMovimientos()).map((m) => m.nombre)).toEqual(['Nómina', 'Extra'])
+    })
+
+    it('abre un sobre nuevo, ligado al usuario del almacén', async () => {
+      const almacen = Object.assign(almacenFalso(), { usuario: 'usuario-1' })
+      const repo = await crearBoveda(almacen, 'contraseña', IT)
+      await repo.crearMovimiento({ tipo: 'ingreso', nombre: 'A', importe: 1 })
+      expect(almacen.sobre?.version).toBe(6)
+      const otra = await abrirBoveda(almacen, almacen.sobre!, 'contraseña')
+      expect((await otra.listarMovimientos()).map((m) => m.nombre)).toEqual(['A'])
+    })
+
+    it('un sobre manipulado o de otro usuario no se abre', async () => {
+      const almacen = Object.assign(almacenFalso(), { usuario: 'usuario-1' })
+      await crearBoveda(almacen, 'contraseña', IT)
+      const sobre = almacen.sobre!
+      await expect(abrirBoveda(Object.assign(almacenFalso(), { usuario: 'usuario-2' }), sobre, 'contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
+      await expect(abrirBoveda(almacen, { ...sobre, version: 5 }, 'contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
+      const bytes = atob(sobre.cifrado)
+      const tocado = btoa(String.fromCharCode(bytes.charCodeAt(0) ^ 1) + bytes.slice(1))
+      await expect(abrirBoveda(almacen, { ...sobre, cifrado: tocado }, 'contraseña')).rejects.toBeInstanceOf(ContrasenaIncorrecta)
     })
   })
 })
