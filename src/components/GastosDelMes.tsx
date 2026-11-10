@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import type { GastoVariable } from '../domain/tipos'
 import { NOMBRE_CORTO } from '../domain/tipos'
 import { nombreDia, nombreMes } from '../domain/formato'
+import { BotonBorrar } from './BotonBorrar'
 import { Importe } from './Importe'
 
 interface Props {
@@ -11,7 +11,6 @@ interface Props {
 }
 
 export function GastosDelMes({ gastos, mes, onBorrar }: Props) {
-  const [confirmando, setConfirmando] = useState<string | null>(null)
   const ordenados = [...gastos].sort((a, b) => b.fecha.localeCompare(a.fecha))
   const porDia = new Map<string, GastoVariable[]>()
   for (const g of ordenados) porDia.set(g.fecha, [...(porDia.get(g.fecha) ?? []), g])
@@ -37,14 +36,7 @@ export function GastosDelMes({ gastos, mes, onBorrar }: Props) {
                 </div>
                 <div className="derecha">
                   <Importe valor={g.importe} />
-                  <button
-                    type="button"
-                    className={`icono ${confirmando === g.id ? 'seguro' : ''}`}
-                    onClick={() => (confirmando === g.id ? onBorrar(g.id) : setConfirmando(g.id))}
-                    onBlur={() => setConfirmando(null)}
-                  >
-                    {confirmando === g.id ? '¿Borrar?' : 'Borrar'}
-                  </button>
+                  <BotonBorrar onBorrar={() => onBorrar(g.id)} />
                 </div>
               </li>
             ))}

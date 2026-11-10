@@ -1,5 +1,5 @@
 import { abrirLlave, cifrar, crearLlave, descifrar, ITERACIONES, type Llave, type Sobre } from './cifrado'
-import { ESTADO_VACIO, repositorioEnMemoria, type Estado } from './memoria'
+import { ESTADO_VACIO, normalizarEstado, repositorioEnMemoria, type Estado } from './memoria'
 import type { Repositorio } from './repositorio'
 
 /** Dónde vive el sobre cifrado de una persona. En producción es una fila de Supabase. */
@@ -36,7 +36,8 @@ export async function crearBoveda(almacen: AlmacenBoveda, contrasena: string, it
 /** Lanza ContrasenaIncorrecta si la contraseña no abre el sobre. */
 export async function abrirBoveda(almacen: AlmacenBoveda, sobre: Sobre, contrasena: string): Promise<Repositorio> {
   const llave = await abrirLlave(contrasena, sobre)
-  const estado = await descifrar<Estado>(llave, sobre)
+  // Los sobres anteriores a la versión 2 no tienen notas: se completan al abrir
+  const estado = normalizarEstado(await descifrar<Partial<Estado>>(llave, sobre))
   await limpiarSinCifrar(almacen)
   return repositorioCifrado(almacen, llave, estado)
 }

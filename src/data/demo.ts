@@ -1,6 +1,6 @@
 import { hoy } from '../domain/formato'
 import type { Repositorio } from './repositorio'
-import { repositorioEnMemoria, type Estado } from './memoria'
+import { normalizarEstado, repositorioEnMemoria, type Estado } from './memoria'
 
 const CLAVE = 'gestor-finanzas:demo'
 
@@ -17,6 +17,7 @@ function ejemplo(): Estado {
       { id: 'e6', tipo: 'gasto', nombre: 'Cena con amigas', importe: 32, categoria: 'ocio', fecha: `${mes}-05` },
       { id: 'e7', tipo: 'gasto', nombre: 'Fondo indexado', importe: 150, categoria: 'inversion', fecha: `${mes}-01` },
     ],
+    notas: [{ id: 'n1', tipo: 'ok', titulo: 'Bien encaminada', texto: 'Este mes el fondo de emergencia sigue creciendo.' }],
     patrimonio: { fondoEmergencia: 1200, totalInvertido: 3400, actualizado: hoy() },
   }
 }
@@ -24,7 +25,7 @@ function ejemplo(): Estado {
 function leer(): Estado {
   try {
     const guardado = localStorage.getItem(CLAVE)
-    if (guardado) return JSON.parse(guardado) as Estado
+    if (guardado) return normalizarEstado(JSON.parse(guardado) as Partial<Estado>)
   } catch {
     // localStorage no disponible o corrupto: empezamos con el ejemplo
   }

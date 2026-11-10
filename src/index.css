@@ -31,7 +31,7 @@ h2 { font-family: var(--display); font-size: 1.15rem; margin: 0; text-wrap: bala
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .num.bien { color: var(--accent); }
 .num.mal { color: var(--bad); }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -90,6 +90,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .icono { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; font: 500 .8rem var(--body); }
 .icono:hover { background: var(--line); color: var(--fg); }
 .icono.seguro { background: var(--bad-soft); color: var(--bad); }
+.notas { display: grid; gap: 8px; }
+.note { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: 10px; font-size: .9rem; overflow-wrap: anywhere; }
+.note.ok { background: var(--accent-soft); color: var(--accent); }
+.note.aviso { background: var(--warn-soft); color: var(--warn); }
+.note.mal { background: var(--bad-soft); color: var(--bad); }
+.note .icono { color: inherit; flex: none; }
+.form textarea { font: 400 .95rem var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; resize: vertical; }
 .anadir { border: 1px dashed var(--line); background: transparent; color: var(--accent); font: 600 .85rem var(--body); padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
 .anadir:hover { border-color: var(--accent); }
 

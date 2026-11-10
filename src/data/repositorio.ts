@@ -1,4 +1,4 @@
-import type { Movimiento, NuevoMovimiento, Patrimonio } from '../domain/tipos'
+import type { Movimiento, NuevaNota, NuevoMovimiento, Nota, Patrimonio } from '../domain/tipos'
 
 /**
  * Dónde se guardan los datos de la persona que ha iniciado sesión.
@@ -9,6 +9,10 @@ export interface Repositorio {
   crearMovimiento(m: NuevoMovimiento): Promise<Movimiento>
   actualizarMovimiento(m: Movimiento): Promise<void>
   borrarMovimiento(id: string): Promise<void>
+  listarNotas(): Promise<Nota[]>
+  crearNota(n: NuevaNota): Promise<Nota>
+  actualizarNota(n: Nota): Promise<void>
+  borrarNota(id: string): Promise<void>
   leerPatrimonio(): Promise<Patrimonio>
   guardarPatrimonio(p: Omit<Patrimonio, 'actualizado'>): Promise<Patrimonio>
 }

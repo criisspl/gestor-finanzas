@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { CATEGORIAS, NOMBRE_CATEGORIA, NOMBRE_CORTO, type Categoria, type GastoFijo, type Ingreso, type Movimiento, type NuevoMovimiento } from '../domain/tipos'
 import { parsearImporte } from '../domain/formato'
+import { BotonBorrar } from './BotonBorrar'
 import { Importe } from './Importe'
 
 type Item = Ingreso | GastoFijo
@@ -111,7 +112,7 @@ export function Formulario({ tipo, inicial, onGuardar, onCancelar, onBorrar }: {
           <button className="btn primario" type="submit">Guardar</button>
           {onCancelar && <button className="btn suave" type="button" onClick={onCancelar}>Cancelar</button>}
         </div>
-        {onBorrar && <button className="btn peligro" type="button" onClick={onBorrar}>Borrar</button>}
+        {onBorrar && <BotonBorrar className="btn peligro" onBorrar={onBorrar} />}
       </div>
     </form>
   )
