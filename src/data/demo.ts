@@ -58,6 +58,11 @@ function escribir(e: Estado) {
   }
 }
 
+/** Los datos de ejemplo tal como están ahora, para migrarlos o exportarlos. */
+export function leerEstadoDemo(): Estado {
+  return leer()
+}
+
 /** Guarda los datos en el navegador. Se usa cuando no hay Supabase configurado. */
 export function repositorioDemo(): Repositorio {
   return repositorioEnMemoria(leer(), async (e) => escribir(e))

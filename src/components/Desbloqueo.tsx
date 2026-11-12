@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { abrirBoveda, CONTRASENA_MINIMA, crearBoveda, type AlmacenBoveda } from '../data/boveda'
 import { ContrasenaIncorrecta, type Sobre } from '../data/cifrado'
 import type { Repositorio } from '../data/repositorio'
+import { ImportarFichero } from './ImportarFichero.tsx'
 
 /**
  * Pide la contraseña con la que se cifran los datos en este navegador.
@@ -13,6 +14,7 @@ export function Desbloqueo({ almacen, onAbierto }: { almacen: AlmacenBoveda; onA
   const [repetida, setRepetida] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [importando, setImportando] = useState(false)
 
   useEffect(() => {
     almacen.leer().then(setSobre, () => setError('No se pudieron cargar tus datos. Recarga la página.'))
@@ -35,6 +37,7 @@ export function Desbloqueo({ almacen, onAbierto }: { almacen: AlmacenBoveda; onA
 
   const nueva = sobre === null
   return (
+    <>
     <form className="bienvenida" onSubmit={enviar}>
       <h2>{nueva ? 'Elige una contraseña para cifrar tus datos' : 'Desbloquea tus datos'}</h2>
       <p className="sub">
@@ -56,6 +59,17 @@ export function Desbloqueo({ almacen, onAbierto }: { almacen: AlmacenBoveda; onA
           {ocupado ? 'Descifrando…' : nueva ? 'Cifrar mis datos' : 'Desbloquear'}
         </button>
       </div>
+      {nueva && (
+        <div>
+          <button type="button" className="enlace" onClick={() => setImportando(!importando)}>Ya tengo una copia en un fichero</button>
+        </div>
+      )}
     </form>
+    {nueva && importando && (
+      <div className="bienvenida">
+        <ImportarFichero almacen={almacen} sustituye={false} onImportado={async (c) => onAbierto(await abrirBoveda(almacen, (await almacen.leer())!, c))} />
+      </div>
+    )}
+    </>
   )
 }
