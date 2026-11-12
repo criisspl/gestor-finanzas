@@ -34,7 +34,7 @@ const cargandoSeccion = <p className="estado">Cargando…</p>
 const DIAS_CIERRE = 5
 
 /** Pantalla principal con los datos de la persona que ha entrado. */
-export function Panel({ repo }: { repo: Repositorio }) {
+export function Panel({ repo, onCambiarAlmacenamiento }: { repo: Repositorio; onCambiarAlmacenamiento: () => void }) {
   const f = useFinanzas(repo)
   const dia = f.ajustes.diaInicio
   const actual = mesDeFecha(hoy(), dia)
@@ -148,7 +148,7 @@ export function Panel({ repo }: { repo: Repositorio }) {
         onCrear={f.crear} onActualizar={f.actualizar} onBorrar={f.borrar} />
       <PatrimonioAcumulado patrimonio={f.patrimonio} onGuardar={f.guardarPatrimonio} />
       <Suspense fallback={cargandoSeccion}>
-        <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} />
+        <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} onCambiarAlmacenamiento={onCambiarAlmacenamiento} />
       </Suspense>
       {repo.cambiarContrasena && <CambiarContrasena onCambiar={repo.cambiarContrasena} />}
     </>
