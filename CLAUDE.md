@@ -7,7 +7,7 @@ Solo lo propio de este repo; las reglas generales y las skills vienen de [claude
 - React 19 + TypeScript + Vite. Node 22.
 - Supabase: acceso por enlace mágico y Postgres con Row Level Security.
 - Cifrado en el navegador con Web Crypto (PBKDF2 + AES-GCM): el servidor solo guarda un sobre cifrado por persona (tabla `bovedas`).
-- Sin variables de entorno arranca en modo demo, con datos de ejemplo en `localStorage`.
+- Cada persona elige dónde guardar sus datos en la pantalla de instalación (Supabase propio, este navegador cifrado o datos de ejemplo en `localStorage`). Las variables `VITE_SUPABASE_*` son opcionales: solo sugieren el valor preseleccionado.
 - Tests: Vitest, junto al código (`*.test.ts` en `src/domain/` y `src/data/`).
 
 | Qué      | Comando                                 |
@@ -23,12 +23,13 @@ CI ejecuta lint, tests y build: todo tiene que pasar antes de dar algo por hecho
 ## Estructura
 
 - `src/domain/`: lógica pura sin React ni red (tipos, las 6 reglas, formato). Aquí va lo testeable.
-- `src/data/`: patrón repositorio (`repositorio.ts`); implementaciones en memoria, demo y Supabase; cifrado en `cifrado.ts` y `boveda.ts`.
+- `src/data/`: patrón repositorio (`repositorio.ts`); implementaciones en memoria, demo y Supabase; cifrado en `cifrado.ts` y `boveda.ts`; `proveedores/` (un `Proveedor` por destino) y `configuracion.ts` (elección de la persona).
 - `src/hooks/useFinanzas.ts`: carga los datos y expone las operaciones. `src/components/`: pantallas y formularios.
 - `supabase/migrations/`: esquema SQL y políticas de seguridad.
 
 ## Reglas del proyecto
 
+- **Configuración de almacenamiento:** `configuracion.ts` guarda solo `{proveedor, parámetros públicos}` en `localStorage`; nunca la contraseña de la bóveda ni campos `secreto`. Destinos configurables: solo `https` (`validar` en el campo). Proveedor nuevo = `Proveedor` en `proveedores/` + registrarlo en `PROVEEDORES`. Si cambia el formato de la configuración, sube `VERSION` y sigue leyendo la anterior.
 - **Privacidad:** los datos se cifran en el navegador y la clave nunca sale de él. Nada en claro hacia Supabase.
 - Las reglas y sus porcentajes viven solo en `src/domain/reglas.ts`, como funciones puras.
 - Importes en formato español con `parsearImporte`, redondeados a céntimos.

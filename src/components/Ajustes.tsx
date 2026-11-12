@@ -4,7 +4,7 @@ import type { Ajustes as DatosAjustes } from '../domain/tipos.ts'
 import { BotonBorrar } from './BotonBorrar'
 
 /** Día en que empieza cada nómina y nombres de las cuentas. La primera cuenta es la de la nómina. */
-export function Ajustes({ ajustes, onGuardar }: { ajustes: DatosAjustes; onGuardar: (a: DatosAjustes) => Promise<unknown> }) {
+export function Ajustes({ ajustes, onGuardar, onCambiarAlmacenamiento }: { ajustes: DatosAjustes; onGuardar: (a: DatosAjustes) => Promise<unknown>; onCambiarAlmacenamiento: () => void }) {
   const [dia, setDia] = useState(String(ajustes.diaInicio))
   const [nueva, setNueva] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
@@ -50,6 +50,8 @@ export function Ajustes({ ajustes, onGuardar }: { ajustes: DatosAjustes; onGuard
         {aviso && <p className="aviso" role="alert">{aviso}</p>}
         <div className="acciones"><button className="btn suave" type="submit">+ Añadir cuenta</button></div>
       </form>
+      <p className="sub">Almacenamiento. Elige dónde se guardan tus datos; los que ya tienes no se mueven solos.</p>
+      <div className="acciones"><button className="btn suave" type="button" onClick={onCambiarAlmacenamiento}>Cambiar dónde se guardan</button></div>
     </section>
   )
 }

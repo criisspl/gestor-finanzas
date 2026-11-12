@@ -6,7 +6,7 @@ const CLAVE = 'gestor-finanzas:boveda-local'
 
 /**
  * Guarda el sobre cifrado en el `localStorage` del navegador.
- * El modo demo de hoy (`demo.ts`) sigue guardando sus datos de ejemplo en claro y no pasa por aquí.
+ * Los datos de ejemplo sin cifrar son otro proveedor (`demo.ts`) y no pasan por aquí.
  */
 function almacenLocal(): AlmacenBoveda {
   return {
@@ -27,7 +27,8 @@ function almacenLocal(): AlmacenBoveda {
 
 export const proveedorLocal: ProveedorAlmacen = {
   id: 'local',
-  nombre: 'Este navegador (demo)',
+  nombre: 'Solo en este navegador (cifrado)',
+  descripcion: 'Tus datos cifrados se quedan en este navegador, sin cuenta ni servidor. Si borras los datos del navegador, los pierdes.',
   campos: [],
   crearAlmacen: () => almacenLocal(),
 }

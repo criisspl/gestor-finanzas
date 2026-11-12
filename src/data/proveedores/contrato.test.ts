@@ -4,10 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { abrirBoveda, crearBoveda, type AlmacenBoveda } from '../boveda.ts'
 import { ContrasenaIncorrecta, type Sobre } from '../cifrado.ts'
 import { ESTADO_VACIO } from '../memoria.ts'
-import { PROVEEDORES, clienteSupabase, seleccionDesdeEntorno } from './index.ts'
+import { PROVEEDORES, buscarProveedor, clienteSupabase, usaBoveda } from './index.ts'
 import { almacenSupabase } from './supabase.ts'
 import { proveedorSupabase } from './supabase.ts'
 import { proveedorLocal } from './local.ts'
+import { proveedorDemo } from './demo.ts'
 
 const sobre: Sobre = { version: 6, sal: 's', iteraciones: 1000, iv: 'i', cifrado: 'c' }
 
@@ -106,6 +107,7 @@ describe('proveedores', () => {
   })
 
   it('los ids son únicos y los campos están descritos', () => {
+    expect(PROVEEDORES.map((p) => p.id)).toEqual(['supabase', 'local', 'demo'])
     expect(new Set(PROVEEDORES.map((p) => p.id)).size).toBe(PROVEEDORES.length)
     expect(proveedorSupabase.campos.map((c) => c.clave)).toEqual(['url', 'clave'])
     expect(proveedorLocal.campos).toEqual([])
@@ -120,19 +122,31 @@ describe('proveedores', () => {
   })
 })
 
-describe('seleccionDesdeEntorno (igual que la elección de antes)', () => {
-  it('con url y clave elige supabase', () => {
-    const s = seleccionDesdeEntorno({ VITE_SUPABASE_URL: 'https://a.test', VITE_SUPABASE_ANON_KEY: 'k' })
-    expect(s.proveedor.id).toBe('supabase')
-    expect(s.config).toEqual({ url: 'https://a.test', clave: 'k' })
+describe('proveedor demo', () => {
+  it('no usa bóveda: da un repositorio con datos de ejemplo', async () => {
+    localStorage.clear()
+    expect(usaBoveda(proveedorDemo)).toBe(false)
+    expect((await proveedorDemo.crearRepositorio().listarMovimientos()).length).toBeGreaterThan(0)
   })
+  it('buscarProveedor encuentra por id y devuelve undefined si no existe', () => {
+    expect(buscarProveedor('demo')).toBe(proveedorDemo)
+    expect(buscarProveedor('nube-inventada')).toBeUndefined()
+  })
+})
 
-  it.each([
-    {},
-    { VITE_SUPABASE_URL: 'https://a.test' },
-    { VITE_SUPABASE_ANON_KEY: 'k' },
-    { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
-  ])('sin las dos variables (%j) cae a modo demo', (env) => {
-    expect(seleccionDesdeEntorno(env).proveedor.id).toBe('local')
+describe('validación de los campos de Supabase', () => {
+  const [url, clave] = proveedorSupabase.campos
+  it.each(['http://a.supabase.co', 'ftp://a.test', 'a.supabase.co', 'https://user:pass@a.supabase.co', 'javascript:alert(1)'])('rechaza la url %s', (v) => {
+    expect(url.validar?.(v)).toEqual(expect.any(String))
+  })
+  it('acepta una url https', () => {
+    expect(url.validar?.('https://abc.supabase.co')).toBeNull()
+  })
+  it('rechaza la clave secreta, también como JWT service_role, y acepta la pública', () => {
+    const jwt = (rol: string) => `h.${btoa(JSON.stringify({ role: rol })).replace(/=/g, '')}.f`
+    expect(clave.validar?.('sb_secret_abc')).toEqual(expect.any(String))
+    expect(clave.validar?.(jwt('service_role'))).toEqual(expect.any(String))
+    expect(clave.validar?.(jwt('anon'))).toBeNull()
+    expect(clave.validar?.('sb_publishable_abc')).toBeNull()
   })
 })

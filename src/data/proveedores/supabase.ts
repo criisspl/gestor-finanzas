@@ -6,6 +6,31 @@ import { AJUSTES_POR_DEFECTO } from '../../domain/tipos.ts'
 import { PATRIMONIO_VACIO } from '../repositorio.ts'
 import type { ConfigProveedor, ProveedorAlmacen } from './tipos.ts'
 
+/** Solo https y sin usuario ni contraseña en la dirección: la clave y los datos viajan por ahí. */
+export function validarUrlHttps(valor: string): string | null {
+  let url: URL
+  try {
+    url = new URL(valor)
+  } catch {
+    return 'No es una dirección válida. Ejemplo: https://tu-proyecto.supabase.co'
+  }
+  if (url.protocol !== 'https:') return 'La dirección tiene que empezar por https://'
+  if (url.username || url.password) return 'La dirección no puede llevar usuario ni contraseña.'
+  return null
+}
+
+/** Rechaza la clave secreta (`sb_secret_…` o JWT con rol service_role): se salta la seguridad y no puede ir en el navegador. */
+export function validarClavePublica(valor: string): string | null {
+  if (valor.startsWith('sb_secret_')) return 'Esa es la clave secreta. Usa la clave pública (anon/publishable).'
+  try {
+    const carga = JSON.parse(atob(valor.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { role?: unknown }
+    if (carga.role === 'service_role') return 'Esa es la clave service_role. Usa la clave pública (anon).'
+  } catch {
+    // no es un JWT: nada más que comprobar
+  }
+  return null
+}
+
 const clientes = new Map<string, SupabaseClient>()
 
 /** Un único cliente por proyecto (url + clave): la sesión y sus avisos viven en él. Se crea al pedirlo, no al cargar el módulo. */
@@ -116,10 +141,11 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
 export const proveedorSupabase: ProveedorAlmacen = {
   id: 'supabase',
   nombre: 'Supabase',
+  descripcion: 'Tus datos cifrados se guardan en tu propio proyecto de Supabase y los recuperas desde cualquier dispositivo con tu correo y tu contraseña.',
   campos: [
-    { clave: 'url', etiqueta: 'URL del proyecto' },
+    { clave: 'url', etiqueta: 'URL del proyecto (https)', validar: validarUrlHttps },
     // Es la clave pública (publishable/anon); la secret nunca va al cliente
-    { clave: 'clave', etiqueta: 'Clave pública (anon)' },
+    { clave: 'clave', etiqueta: 'Clave pública (anon)', validar: validarClavePublica },
   ],
   crearAlmacen(config, contexto) {
     if (!contexto?.usuario) throw new Error('Supabase necesita la persona que ha iniciado sesión')
