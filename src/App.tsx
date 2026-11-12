@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, almacenSupabase } from './data/supabase'
+import { clienteSupabase, seleccionDesdeEntorno } from './data/proveedores'
 import { repositorioDemo, reiniciarDemo } from './data/demo'
 import type { Repositorio } from './data/repositorio'
 import { Acceso } from './components/Acceso'
@@ -8,7 +8,12 @@ import { Desbloqueo } from './components/Desbloqueo'
 import { Panel } from './components/Panel'
 import { useBloqueoInactividad } from './hooks/useBloqueoInactividad.ts'
 
+// Hoy el proveedor sale de las variables de entorno; sin Supabase, modo demo
+const seleccion = seleccionDesdeEntorno(import.meta.env)
+const conSupabase = seleccion.proveedor.id === 'supabase'
+
 export default function App() {
+  const supabase = useMemo(() => (conSupabase ? clienteSupabase(seleccion.config) : null), [])
   const [sesion, setSesion] = useState<Session | null>(null)
   const [comprobando, setComprobando] = useState(!!supabase)
 
@@ -20,11 +25,11 @@ export default function App() {
     })
     const { data } = supabase.auth.onAuthStateChange((_evento, s) => setSesion(s))
     return () => data.subscription.unsubscribe()
-  }, [])
+  }, [supabase])
 
   const userId = sesion?.user.id
-  const demo = useMemo(() => (supabase ? null : repositorioDemo()), [])
-  const almacen = useMemo(() => (supabase && userId ? almacenSupabase(supabase, userId) : null), [userId])
+  const demo = useMemo(() => (supabase ? null : repositorioDemo()), [supabase])
+  const almacen = useMemo(() => (conSupabase && userId ? seleccion.proveedor.crearAlmacen(seleccion.config, { usuario: userId }) : null), [userId])
   // El repositorio descifrado solo vale para la persona que lo abrió: al salir o cambiar de cuenta se descarta
   const [abierto, setAbierto] = useState<{ userId: string; repo: Repositorio } | null>(null)
   const repo = demo ?? (abierto && abierto.userId === userId ? abierto.repo : null)

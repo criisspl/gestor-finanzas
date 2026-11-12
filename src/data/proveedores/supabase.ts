@@ -1,15 +1,25 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Categoria, Movimiento } from '../domain/tipos'
-import { ConflictoBoveda, type AlmacenBoveda } from './boveda.ts'
-import type { Sobre } from './cifrado'
-import { AJUSTES_POR_DEFECTO } from '../domain/tipos.ts'
-import { PATRIMONIO_VACIO } from './repositorio'
+import type { Categoria, Movimiento } from '../../domain/tipos.ts'
+import { ConflictoBoveda, type AlmacenBoveda } from '../boveda.ts'
+import type { Sobre } from '../cifrado.ts'
+import { AJUSTES_POR_DEFECTO } from '../../domain/tipos.ts'
+import { PATRIMONIO_VACIO } from '../repositorio.ts'
+import type { ConfigProveedor, ProveedorAlmacen } from './tipos.ts'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const clave = import.meta.env.VITE_SUPABASE_ANON_KEY
+const clientes = new Map<string, SupabaseClient>()
 
-/** null cuando no hay variables de entorno: la app arranca en modo demo. */
-export const supabase: SupabaseClient | null = url && clave ? createClient(url, clave) : null
+/** Un único cliente por proyecto (url + clave): la sesión y sus avisos viven en él. Se crea al pedirlo, no al cargar el módulo. */
+export function clienteSupabase(config: ConfigProveedor, crear: typeof createClient = createClient): SupabaseClient {
+  const { url, clave } = config
+  if (!url || !clave) throw new Error('Supabase necesita url y clave')
+  const id = `${url}\n${clave}`
+  let cliente = clientes.get(id)
+  if (!cliente) {
+    cliente = crear(url, clave)
+    clientes.set(id, cliente)
+  }
+  return cliente
+}
 
 interface FilaMovimiento {
   id: string
@@ -101,4 +111,18 @@ export function almacenSupabase(db: SupabaseClient, userId: string): AlmacenBove
       if (pat.error) throw pat.error
     },
   }
+}
+
+export const proveedorSupabase: ProveedorAlmacen = {
+  id: 'supabase',
+  nombre: 'Supabase',
+  campos: [
+    { clave: 'url', etiqueta: 'URL del proyecto' },
+    // Es la clave pública (publishable/anon); la secret nunca va al cliente
+    { clave: 'clave', etiqueta: 'Clave pública (anon)' },
+  ],
+  crearAlmacen(config, contexto) {
+    if (!contexto?.usuario) throw new Error('Supabase necesita la persona que ha iniciado sesión')
+    return almacenSupabase(clienteSupabase(config), contexto.usuario)
+  },
 }

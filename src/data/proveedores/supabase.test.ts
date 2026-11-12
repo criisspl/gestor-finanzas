@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, it } from 'vitest'
-import { ConflictoBoveda } from './boveda.ts'
-import type { Sobre } from './cifrado.ts'
+import { ConflictoBoveda } from '../boveda.ts'
+import type { Sobre } from '../cifrado.ts'
 import { almacenSupabase } from './supabase.ts'
 
 const sobre: Sobre = { version: 5, sal: 's', iteraciones: 1000, iv: 'i', cifrado: 'c' }
