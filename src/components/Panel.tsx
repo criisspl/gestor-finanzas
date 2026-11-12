@@ -19,6 +19,7 @@ import { Pestanas } from './Pestanas'
 import { Traspasos } from './Traspasos'
 import { ResumenCuentas } from './ResumenCuentas'
 import { CambiarContrasena } from './CambiarContrasena'
+import type { OrigenDatos } from './CopiaDatos.tsx'
 
 // Secciones secundarias o pesadas: se cargan en un chunk aparte
 const Cobros = lazy(() => import('./Cobros').then((m) => ({ default: m.Cobros })))
@@ -34,7 +35,7 @@ const cargandoSeccion = <p className="estado">Cargando…</p>
 const DIAS_CIERRE = 5
 
 /** Pantalla principal con los datos de la persona que ha entrado. */
-export function Panel({ repo, onCambiarAlmacenamiento }: { repo: Repositorio; onCambiarAlmacenamiento: () => void }) {
+export function Panel({ repo, onCambiarAlmacenamiento, origen, onImportado }: { repo: Repositorio; onCambiarAlmacenamiento: () => void; origen: OrigenDatos; onImportado: () => void }) {
   const f = useFinanzas(repo)
   const dia = f.ajustes.diaInicio
   const actual = mesDeFecha(hoy(), dia)
@@ -148,7 +149,7 @@ export function Panel({ repo, onCambiarAlmacenamiento }: { repo: Repositorio; on
         onCrear={f.crear} onActualizar={f.actualizar} onBorrar={f.borrar} />
       <PatrimonioAcumulado patrimonio={f.patrimonio} onGuardar={f.guardarPatrimonio} />
       <Suspense fallback={cargandoSeccion}>
-        <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} onCambiarAlmacenamiento={onCambiarAlmacenamiento} />
+        <Ajustes ajustes={f.ajustes} onGuardar={f.guardarAjustes} onCambiarAlmacenamiento={onCambiarAlmacenamiento} origen={origen} onImportado={onImportado} />
       </Suspense>
       {repo.cambiarContrasena && <CambiarContrasena onCambiar={repo.cambiarContrasena} />}
     </>

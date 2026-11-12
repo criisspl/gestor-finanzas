@@ -2,9 +2,17 @@ import { useState, type FormEvent } from 'react'
 import { diaInicioValido } from '../domain/ciclo.ts'
 import type { Ajustes as DatosAjustes } from '../domain/tipos.ts'
 import { BotonBorrar } from './BotonBorrar'
+import { CopiaDatos, type OrigenDatos } from './CopiaDatos.tsx'
 
 /** Día en que empieza cada nómina y nombres de las cuentas. La primera cuenta es la de la nómina. */
-export function Ajustes({ ajustes, onGuardar, onCambiarAlmacenamiento }: { ajustes: DatosAjustes; onGuardar: (a: DatosAjustes) => Promise<unknown>; onCambiarAlmacenamiento: () => void }) {
+export function Ajustes({ ajustes, onGuardar, onCambiarAlmacenamiento, origen, onImportado }: {
+  ajustes: DatosAjustes
+  onGuardar: (a: DatosAjustes) => Promise<unknown>
+  onCambiarAlmacenamiento: () => void
+  origen: OrigenDatos
+  /** Se han sustituido los datos: hay que volver a abrir la bóveda. */
+  onImportado: () => void
+}) {
   const [dia, setDia] = useState(String(ajustes.diaInicio))
   const [nueva, setNueva] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
@@ -52,6 +60,7 @@ export function Ajustes({ ajustes, onGuardar, onCambiarAlmacenamiento }: { ajust
       </form>
       <p className="sub">Almacenamiento. Elige dónde se guardan tus datos; los que ya tienes no se mueven solos.</p>
       <div className="acciones"><button className="btn suave" type="button" onClick={onCambiarAlmacenamiento}>Cambiar dónde se guardan</button></div>
+      <CopiaDatos origen={origen} onImportado={onImportado} />
     </section>
   )
 }

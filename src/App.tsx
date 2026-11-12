@@ -70,7 +70,7 @@ function Finanzas({ seleccion, onCambiarAlmacenamiento }: { seleccion: Seleccion
 
   let contenido
   if (comprobando) contenido = <p className="estado">Cargando…</p>
-  else if (repo) contenido = <Panel key={userId ?? proveedor.id} repo={repo} onCambiarAlmacenamiento={onCambiarAlmacenamiento} />
+  else if (repo) contenido = <Panel key={userId ?? proveedor.id} repo={repo} onCambiarAlmacenamiento={onCambiarAlmacenamiento} origen={almacen ? { modo: 'boveda', almacen } : { modo: 'demo' }} onImportado={bloquear} />
   else if (almacen) contenido = <Desbloqueo key={userId ?? proveedor.id} almacen={almacen} onAbierto={(r) => setAbierto({ userId, repo: r })} />
   else contenido = <Acceso db={supabase!} />
 
