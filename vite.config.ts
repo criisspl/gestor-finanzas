@@ -1,6 +1,9 @@
 import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { createHash } from 'node:crypto'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 /**
  * Política de contenido del build: los datos ya descifrados viven en la página, así que un script
@@ -32,8 +35,28 @@ function csp(supabaseUrl: string | undefined): Plugin {
   }
 }
 
+/** Pone en dist/sw.js el id del build (hash de los nombres de fichero, que ya llevan hash): cada versión, su caché. */
+function versionaSw(): Plugin {
+  let id = ''
+  let salida = 'dist'
+  return {
+    name: 'gestor-versiona-sw',
+    apply: 'build',
+    configResolved(c) {
+      salida = join(c.root, c.build.outDir)
+    },
+    generateBundle(_, bundle) {
+      id = createHash('sha256').update(Object.keys(bundle).sort().join('\n')).digest('hex').slice(0, 10)
+    },
+    closeBundle() {
+      const ruta = join(salida, 'sw.js')
+      writeFileSync(ruta, readFileSync(ruta, 'utf8').replaceAll('__BUILD_ID__', id))
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), csp(loadEnv(mode, '.', 'VITE_').VITE_SUPABASE_URL)],
+  plugins: [react(), csp(loadEnv(mode, '.', 'VITE_').VITE_SUPABASE_URL), versionaSw()],
   test: {
     // Los tests de componentes (*.tsx) declaran `// @vitest-environment jsdom`; los de lógica corren en node
     include: ['src/**/*.test.{ts,tsx}'],
